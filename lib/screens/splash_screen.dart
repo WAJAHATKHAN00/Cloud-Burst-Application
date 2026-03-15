@@ -21,10 +21,10 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
     final state = AppStateScope.of(context);
 
-    if (!state.loggedIn) {
-      Navigator.pushReplacementNamed(context, Routes.login);
-      return;
-    }
+    // if (!state.loggedIn) {
+    //   Navigator.pushReplacementNamed(context, Routes.login);
+    //   return;
+    // }
     if (!state.locationGranted) {
       Navigator.pushReplacementNamed(context, Routes.locationPermission);
       return;
