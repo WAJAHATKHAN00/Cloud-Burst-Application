@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import 'app_state.dart';
@@ -16,15 +17,19 @@ import 'screens/my_reports_screen.dart';
 import 'screens/about_app_screen.dart';
 import 'screens/help_support_screen.dart';
 
-void main() {
-  runApp(const CloudBurstApp());
-}
-
 class CloudBurstApp extends StatefulWidget {
   const CloudBurstApp({super.key});
 
   @override
   State<CloudBurstApp> createState() => _CloudBurstAppState();
+}
+
+void main() async{
+
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
+  runApp(const CloudBurstApp());
 }
 
 class _CloudBurstAppState extends State<CloudBurstApp> {
