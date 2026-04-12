@@ -4,6 +4,7 @@ import '../routes.dart';
 import '../widgets/cloud_background.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/secondary_button.dart';
+import 'package:cloud_burst/services/location_service.dart';
 
 class LocationPermissionScreen extends StatelessWidget {
   const LocationPermissionScreen({super.key});
@@ -53,10 +54,23 @@ class LocationPermissionScreen extends StatelessWidget {
                 PrimaryButton(
                   label: 'Allow Location',
                   icon: Icons.my_location_rounded,
-                  onPressed: () {
-                    final state = AppStateScope.of(context);
-                    state.setLocationGranted(true);
-                    Navigator.pushReplacementNamed(context, Routes.shell);
+                  onPressed: () async {
+                    try {
+                      var position = await LocationService.getLocation();
+
+                      double lat = position.latitude;
+                      double lng = position.longitude;
+
+                      print("Lat: $lat, Lng: $lng");
+
+                      final state = AppStateScope.of(context);
+                      state.setLocationGranted(true);
+
+                      Navigator.pushReplacementNamed(context, Routes.shell);
+
+                    } catch (e) {
+                      print("Error: $e");
+                    }
                   },
                 ),
                 const SizedBox(height: 12),
