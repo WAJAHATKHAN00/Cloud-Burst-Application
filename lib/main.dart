@@ -16,6 +16,7 @@ import 'screens/alert_detail_screen.dart';
 import 'screens/my_reports_screen.dart';
 import 'screens/about_app_screen.dart';
 import 'screens/help_support_screen.dart';
+import 'services/device_service.dart';
 
 class CloudBurstApp extends StatefulWidget {
   const CloudBurstApp({super.key});
@@ -29,6 +30,8 @@ void main() async{
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
+  String deviceId = await DeviceService.getDeviceId();
+  print("Device ID: $deviceId");
   runApp(const CloudBurstApp());
 }
 
