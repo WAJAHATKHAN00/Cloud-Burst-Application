@@ -5,6 +5,8 @@ import '../widgets/cloud_background.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/secondary_button.dart';
 import 'package:cloud_burst/services/location_service.dart';
+import 'package:cloud_burst/services/firestore_service.dart';
+import 'package:cloud_burst/services/device_service.dart';
 
 class LocationPermissionScreen extends StatelessWidget {
   const LocationPermissionScreen({super.key});
@@ -61,7 +63,15 @@ class LocationPermissionScreen extends StatelessWidget {
                       double lat = position.latitude;
                       double lng = position.longitude;
 
-                      print("Lat: $lat, Lng: $lng");
+                      String deviceId = await DeviceService.getDeviceId();
+
+                      await FirestoreService.saveDeviceLocation(
+                        deviceId: deviceId,
+                        lat: lat,
+                        lng: lng,
+                      );
+
+                      print("Saved to Firebase");
 
                       final state = AppStateScope.of(context);
                       state.setLocationGranted(true);
