@@ -2,9 +2,94 @@ import 'package:flutter/material.dart';
 import '../../app_state.dart';
 import '../../routes.dart';
 import '../../widgets/section_title.dart';
+import '../../services/weather_service.dart';
+import '../../services/prediction_service.dart';
 
-class HomeTab extends StatelessWidget {
+class HomeTab extends StatefulWidget {
   const HomeTab({super.key});
+
+  @override
+  State<HomeTab> createState() => _HomeTabState();
+}
+//adfafafafasf
+class _HomeTabState extends State<HomeTab> {
+  String risk = "Loading...";
+  String rainfall = "--";
+  String humidity = "--";
+  String wind = "--";
+  String probability = "--";
+
+  List forecastList = [];
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    loadData(); // 🔥 main trigger
+  }
+
+  Future<void> loadData() async {
+    try {
+      final state = AppStateScope.of(context);
+
+      final data = await WeatherService.fetchWeather(
+        state.latitude,
+        state.longitude,
+      );
+
+      final prediction = PredictionService.predict(data);
+
+      setState(() {
+        risk = prediction;
+
+        final first = data["list"][0];
+
+        humidity = "${(first["main"]["humidity"] as num).toInt()}%";
+
+        wind =
+        "${(first["wind"]["speed"] as num).toDouble().toStringAsFixed(1)} m/s";
+
+        rainfall =
+        "${(((first["pop"] ?? 0) as num) * 100).toStringAsFixed(0)}%";
+
+        probability = rainfall;
+
+        // 🔥 ADD THIS LINE
+        forecastList = data["list"];
+      });
+    } catch (e) {
+      print("ERROR: $e");
+    }
+  }
+  String getRiskFromItem(Map<String, dynamic> item) {
+    double humidity = (item["main"]["humidity"] as num).toDouble();
+    double pressure = (item["main"]["pressure"] as num).toDouble();
+    double wind = (item["wind"]["speed"] as num).toDouble();
+    double clouds = (item["clouds"]["all"] as num).toDouble();
+    double rain = ((item["pop"] ?? 0) as num).toDouble() * 100;
+
+    int score = 0;
+
+    if (humidity > 75) score += 2;
+    if (clouds > 70) score += 2;
+    if (pressure < 1005) score += 3;
+    if (wind > 8) score += 2;
+    if (rain > 50) score += 3;
+
+    if (score >= 8) return "HIGH";
+    if (score >= 5) return "MODERATE";
+    return "LOW";
+  }
+
+  Color getRiskColor() {
+    if (risk.contains("HIGH")) return const Color(0xFFEF4444);
+    if (risk.contains("MODERATE")) return Colors.orange;
+    return Colors.green;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,16 +128,15 @@ class HomeTab extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               IconButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Updated (demo).')),
-                  );
-                },
+                onPressed: loadData,
                 icon: const Icon(Icons.refresh_rounded),
               ),
             ],
           ),
+
           const SizedBox(height: 14),
+
+          /// 🔴 RISK CARD
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -64,32 +148,44 @@ class HomeTab extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEF4444).withOpacity(0.12),
+                          color: getRiskColor().withOpacity(0.12),
                           borderRadius: BorderRadius.circular(999),
                         ),
-                        child: const Row(
+                        child: Row(
                           children: [
-                            Icon(Icons.warning_amber_rounded, size: 18, color: Color(0xFFEF4444)),
-                            SizedBox(width: 6),
-                            Text('HIGH RISK', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w800)),
+                            Icon(Icons.warning_amber_rounded, size: 18, color: getRiskColor()),
+                            const SizedBox(width: 6),
+                            Text(
+                              risk,
+                              style: TextStyle(
+                                color: getRiskColor(),
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                       const Spacer(),
-                      Text('Updated 3 min ago', style: TextStyle(color: Colors.black54, fontSize: 12)),
+                      const Text('Live', style: TextStyle(color: Colors.black54, fontSize: 12)),
                     ],
                   ),
+
                   const SizedBox(height: 12),
+
                   Text(
-                    'Heavy rainfall detected',
+                    'Weather condition analysis',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
                   ),
+
                   const SizedBox(height: 6),
+
                   Text(
-                    'Rainfall intensity: 32 mm/hr  •  Confidence: 80%',
+                    'Rain probability: $rainfall  •  Confidence: $probability',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
                   ),
+
                   const SizedBox(height: 12),
+
                   SizedBox(
                     width: double.infinity,
                     height: 46,
@@ -102,61 +198,61 @@ class HomeTab extends StatelessWidget {
               ),
             ),
           ),
+
           const SizedBox(height: 14),
+
+          /// 🔵 METRICS
           const SectionTitle('Weather metrics'),
           const SizedBox(height: 10),
+
           Row(
-            children: const [
-              Expanded(child: _MetricCard(icon: Icons.water_drop_rounded, title: 'Rainfall', value: '32 mm/hr')),
-              SizedBox(width: 10),
-              Expanded(child: _MetricCard(icon: Icons.opacity_rounded, title: 'Humidity', value: '85%')),
-              SizedBox(width: 10),
-              Expanded(child: _MetricCard(icon: Icons.air_rounded, title: 'Wind', value: '26 km/h')),
+            children: [
+              Expanded(child: _MetricCard(icon: Icons.water_drop_rounded, title: 'Rain', value: rainfall)),
+              const SizedBox(width: 10),
+              Expanded(child: _MetricCard(icon: Icons.opacity_rounded, title: 'Humidity', value: humidity)),
+              const SizedBox(width: 10),
+              Expanded(child: _MetricCard(icon: Icons.air_rounded, title: 'Wind', value: wind)),
             ],
           ),
+
           const SizedBox(height: 14),
+
+          /// 🔵 DYNAMIC FORECAST
           const SectionTitle('Next 3 hours forecast'),
           const SizedBox(height: 10),
+
           SizedBox(
             height: 92,
-            child: ListView(
+            child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              children: const [
-                _ForecastChip(time: 'Now', temp: '27°', risk: 'High'),
-                _ForecastChip(time: '4 PM', temp: '26°', risk: 'High'),
-                _ForecastChip(time: '6 PM', temp: '24°', risk: 'Moderate'),
-                _ForecastChip(time: '8 PM', temp: '22°', risk: 'Low'),
-              ],
+              itemCount: 4,
+              itemBuilder: (context, index) {
+                if (forecastList.isEmpty) {
+                  return _ForecastChip(time: '--', temp: '--', risk: '--');
+                }
+
+                if (forecastList.length <= index + 1) {
+                  return _ForecastChip(time: '--', temp: '--', risk: '--');
+                }
+
+                final item = forecastList[index + 1];
+
+                final temp =
+                (item["main"]["temp"] as num).toDouble().toStringAsFixed(0);
+
+                final risk = getRiskFromItem(item);
+
+                final time = index == 0 ? "Now" : "+${(index) * 3}h";
+
+                return _ForecastChip(
+                  time: time,
+                  temp: "$temp°",
+                  risk: risk,
+                );
+              },
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String value;
-
-  const _MetricCard({required this.icon, required this.title, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Icon(icon, color: cs.primary),
-            const SizedBox(height: 6),
-            Text(title, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54)),
-            const SizedBox(height: 2),
-            Text(value, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
-          ],
-        ),
       ),
     );
   }
@@ -167,11 +263,16 @@ class _ForecastChip extends StatelessWidget {
   final String temp;
   final String risk;
 
-  const _ForecastChip({required this.time, required this.temp, required this.risk});
+  const _ForecastChip({
+    required this.time,
+    required this.temp,
+    required this.risk,
+  });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+
     return Container(
       width: 92,
       margin: const EdgeInsets.only(right: 10),
@@ -184,11 +285,67 @@ class _ForecastChip extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(time, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54)),
+          Text(time,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: Colors.black54)),
           const Spacer(),
-          Text(temp, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
-          Text(risk, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54)),
+          Text(temp,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w900)),
+          Text(risk,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: Colors.black54)),
         ],
+      ),
+    );
+  }
+}
+
+class _MetricCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String value;
+
+  const _MetricCard({
+    required this.icon,
+    required this.title,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Icon(icon, color: cs.primary),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: Colors.black54),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
+          ],
+        ),
       ),
     );
   }

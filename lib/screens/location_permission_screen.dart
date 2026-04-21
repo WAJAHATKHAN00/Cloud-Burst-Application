@@ -4,9 +4,11 @@ import '../routes.dart';
 import '../widgets/cloud_background.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/secondary_button.dart';
+
 import 'package:cloud_burst/services/location_service.dart';
 import 'package:cloud_burst/services/firestore_service.dart';
 import 'package:cloud_burst/services/device_service.dart';
+import 'package:cloud_burst/services/weather_service.dart';
 
 class LocationPermissionScreen extends StatelessWidget {
   const LocationPermissionScreen({super.key});
@@ -25,6 +27,8 @@ class LocationPermissionScreen extends StatelessWidget {
             child: Column(
               children: [
                 const SizedBox(height: 6),
+
+                /// INFO CARD
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -39,20 +43,26 @@ class LocationPermissionScreen extends StatelessWidget {
                       Text(
                         'Enable location for accurate alerts',
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
+                          fontWeight: FontWeight.w800,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 6),
                       Text(
                         'We use your location to show local weather and cloudburst risk in real time.',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(color: Colors.black54),
                         textAlign: TextAlign.center,
                       ),
                     ],
                   ),
                 ),
+
                 const Spacer(),
+
+                /// ✅ ALLOW LOCATION BUTTON
                 PrimaryButton(
                   label: 'Allow Location',
                   icon: Icons.my_location_rounded,
@@ -74,16 +84,34 @@ class LocationPermissionScreen extends StatelessWidget {
                       print("Saved to Firebase");
 
                       final state = AppStateScope.of(context);
+
+                      /// ✅ Save coordinates
+                      state.setLocation(lat, lng);
+
+                      /// ✅ Get city name
+                      final cityName =
+                      await WeatherService.getCityName(lat, lng);
+
+                      /// ✅ Set city (with fallback)
+                      state.setSelectedCity(
+                        cityName.isEmpty
+                            ? "${lat.toStringAsFixed(2)}, ${lng.toStringAsFixed(2)}"
+                            : cityName,
+                      );
+
+                      /// ✅ Mark location granted
                       state.setLocationGranted(true);
 
                       Navigator.pushReplacementNamed(context, Routes.shell);
-
                     } catch (e) {
                       print("Error: $e");
                     }
                   },
                 ),
+
                 const SizedBox(height: 12),
+
+                /// ❌ WITHOUT LOCATION
                 SecondaryButton(
                   label: 'Continue Without Location',
                   onPressed: () {

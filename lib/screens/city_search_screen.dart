@@ -13,15 +13,15 @@ class _CitySearchScreenState extends State<CitySearchScreen> {
   final _ctrl = TextEditingController();
   String _query = '';
 
-  static const _cities = <String>[
-    'Islamabad, Pakistan',
-    'Rawalpindi, Pakistan',
-    'Lahore, Pakistan',
-    'Karachi, Pakistan',
-    'Murree, Pakistan',
-    'Gilgit, Pakistan',
-    'Skardu, Pakistan',
-  ];
+  static const Map<String, Map<String, double>> cityCoordinates = {
+    'Islamabad, Pakistan': {'lat': 33.6844, 'lon': 73.0479},
+    'Rawalpindi, Pakistan': {'lat': 33.5651, 'lon': 73.0169},
+    'Lahore, Pakistan': {'lat': 31.5204, 'lon': 74.3587},
+    'Karachi, Pakistan': {'lat': 24.8607, 'lon': 67.0011},
+    'Murree, Pakistan': {'lat': 33.9070, 'lon': 73.3943},
+    'Gilgit, Pakistan': {'lat': 35.9208, 'lon': 74.3142},
+    'Skardu, Pakistan': {'lat': 35.2971, 'lon': 75.6337},
+  };
 
   @override
   void dispose() {
@@ -32,8 +32,9 @@ class _CitySearchScreenState extends State<CitySearchScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final filtered = _cities.where((c) => c.toLowerCase().contains(_query.toLowerCase())).toList();
-
+    final filtered = cityCoordinates.keys
+        .where((c) => c.toLowerCase().contains(_query.toLowerCase()))
+        .toList();
     return CloudBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -103,10 +104,11 @@ class _CitySearchScreenState extends State<CitySearchScreen> {
                                       title: Text(city),
                                       trailing: const Icon(Icons.chevron_right_rounded),
                                       onTap: () {
+                                        final coords = cityCoordinates[city]!;
+
                                         AppStateScope.of(context).setSelectedCity(city);
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text('Selected: $city')),
-                                        );
+                                        AppStateScope.of(context).setLocation(coords['lat']!, coords['lon']!);
+
                                         Navigator.pop(context);
                                       },
                                     );
