@@ -13,11 +13,14 @@ class HomeTab extends StatefulWidget {
 }
 //adfafafafasf
 class _HomeTabState extends State<HomeTab> {
+  String message = "";
   String risk = "Loading...";
   String rainfall = "--";
   String humidity = "--";
   String wind = "--";
   String probability = "--";
+  String temperature = "--";
+  String condition = "";
 
   List forecastList = [];
 
@@ -33,32 +36,49 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   Future<void> loadData() async {
+
     try {
       final state = AppStateScope.of(context);
 
+      // 🔵 Forecast (unchanged)
       final data = await WeatherService.fetchWeather(
         state.latitude,
         state.longitude,
       );
 
-      final prediction = PredictionService.predict(data);
+      // 🔴 Current weather (NEW)
+      final current = await WeatherService.fetchCurrentWeather(
+        state.latitude,
+        state.longitude,
+      );
+
 
       setState(() {
-        risk = prediction;
+        message = PredictionService.getMessage(data);
+        final prediction = PredictionService.predict(data);
 
-        final first = data["list"][0];
+        risk = prediction["risk"];
+        probability = "${prediction["confidence"]}%";
 
-        humidity = "${(first["main"]["humidity"] as num).toInt()}%";
+
+        // 🔴 CURRENT DATA (for metrics)
+        temperature =
+            (current["main"]["feels_like"] as num).toDouble().toStringAsFixed(0);
+
+        condition = current["weather"][0]["main"];
+
+        humidity = "${(current["main"]["humidity"] as num).toInt()}%";
 
         wind =
-        "${(first["wind"]["speed"] as num).toDouble().toStringAsFixed(1)} m/s";
+        "${(current["wind"]["speed"] as num).toDouble().toStringAsFixed(1)} m/s";
+
+        // 🔵 FORECAST DATA (for rain + prediction)
+        final first = data["list"][0];
 
         rainfall =
         "${(((first["pop"] ?? 0) as num) * 100).toStringAsFixed(0)}%";
 
-        probability = rainfall;
 
-        // 🔥 ADD THIS LINE
         forecastList = data["list"];
       });
     } catch (e) {
@@ -173,14 +193,32 @@ class _HomeTabState extends State<HomeTab> {
                   const SizedBox(height: 12),
 
                   Text(
-                    'Weather condition analysis',
+                    'Current conditions',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        "$temperature°",
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        condition,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.black54,
+                        ),
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: 6),
 
                   Text(
-                    'Rain probability: $rainfall  •  Confidence: $probability',
+                       message,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
                   ),
 

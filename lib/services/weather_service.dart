@@ -40,4 +40,17 @@ class WeatherService {
 
     return ""; // fallback handled in UI
   }
+  static Future<Map<String, dynamic>> fetchCurrentWeather(double lat, double lon) async {
+    final url =
+        "https://api.openweathermap.org/data/2.5/weather?lat=$lat&lon=$lon&appid=$apiKey&units=metric";
+
+    final response = await http.get(Uri.parse(url));
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception("Failed to load current weather");
+    }
+  }
 }
+
