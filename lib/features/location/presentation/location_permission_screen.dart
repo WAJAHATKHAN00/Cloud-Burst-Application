@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import '../app_state.dart';
-import '../routes.dart';
-import '../widgets/cloud_background.dart';
-import '../widgets/primary_button.dart';
-import '../widgets/secondary_button.dart';
 
-import 'package:cloud_burst/services/location_service.dart';
-import 'package:cloud_burst/services/firestore_service.dart';
-import 'package:cloud_burst/services/device_service.dart';
-import 'package:cloud_burst/services/weather_service.dart';
+import 'package:cloud_burst/app/routing/routes.dart';
+import 'package:cloud_burst/app/state/app_state.dart';
+import 'package:cloud_burst/core/services/device_service.dart';
+import 'package:cloud_burst/core/services/firestore_service.dart';
+import 'package:cloud_burst/core/services/location_service.dart';
+import 'package:cloud_burst/core/services/weather_service.dart';
+import 'package:cloud_burst/shared/widgets/cloud_background.dart';
+import 'package:cloud_burst/shared/widgets/primary_button.dart';
+import 'package:cloud_burst/shared/widgets/secondary_button.dart';
 
 class LocationPermissionScreen extends StatelessWidget {
   const LocationPermissionScreen({super.key});

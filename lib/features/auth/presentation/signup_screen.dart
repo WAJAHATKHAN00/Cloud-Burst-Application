@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../routes.dart';
-import '../widgets/cloud_background.dart';
-import '../widgets/primary_button.dart';
+
+import 'package:cloud_burst/app/routing/routes.dart';
+import 'package:cloud_burst/shared/widgets/cloud_background.dart';
+import 'package:cloud_burst/shared/widgets/primary_button.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import '../app_state.dart';
-import '../routes.dart';
-import '../widgets/cloud_background.dart';
-import '../widgets/primary_button.dart';
-import '../widgets/secondary_button.dart';
+
+import 'package:cloud_burst/app/routing/routes.dart';
+import 'package:cloud_burst/app/state/app_state.dart';
+import 'package:cloud_burst/shared/widgets/cloud_background.dart';
+import 'package:cloud_burst/shared/widgets/primary_button.dart';
+import 'package:cloud_burst/shared/widgets/secondary_button.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

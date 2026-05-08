@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../app_state.dart';
-import '../widgets/cloud_background.dart';
+
+import 'package:cloud_burst/app/state/app_state.dart';
+import 'package:cloud_burst/shared/widgets/cloud_background.dart';
 
 class CitySearchScreen extends StatefulWidget {
   const CitySearchScreen({super.key});

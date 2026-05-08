@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../widgets/section_title.dart';
+
+import 'package:cloud_burst/shared/widgets/section_title.dart';
 
 class ReportTab extends StatefulWidget {
   const ReportTab({super.key});

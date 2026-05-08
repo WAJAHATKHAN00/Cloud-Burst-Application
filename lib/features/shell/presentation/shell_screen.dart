@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import '../nav.dart';
-import '../routes.dart';
-import '../widgets/cloud_background.dart';
 
-import 'tabs/home_tab.dart';
-import 'tabs/map_tab.dart';
-import 'tabs/alerts_tab.dart';
-import 'tabs/report_tab.dart';
-import 'tabs/profile_tab.dart';
+import 'package:cloud_burst/app/navigation/nav.dart';
+import 'package:cloud_burst/features/alerts/presentation/alerts_tab.dart';
+import 'package:cloud_burst/features/home/presentation/home_tab.dart';
+import 'package:cloud_burst/features/map/presentation/map_tab.dart';
+import 'package:cloud_burst/features/profile/presentation/profile_tab.dart';
+import 'package:cloud_burst/features/reports/presentation/report_tab.dart';
+import 'package:cloud_burst/shared/widgets/cloud_background.dart';
 
 class ShellScreen extends StatefulWidget {
   const ShellScreen({super.key});
@@ -43,13 +42,6 @@ class _ShellScreenState extends State<ShellScreen> {
               NavigationDestination(icon: Icon(item.icon), label: item.label),
           ],
         ),
-        floatingActionButton: (_index == 0)
-            ? FloatingActionButton.extended(
-                onPressed: () => Navigator.pushNamed(context, Routes.citySearch),
-                icon: const Icon(Icons.search_rounded),
-                label: const Text('Search City'),
-              )
-            : null,
       ),
     );
   }

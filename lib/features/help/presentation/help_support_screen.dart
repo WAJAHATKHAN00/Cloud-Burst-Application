@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../widgets/cloud_background.dart';
+
+import 'package:cloud_burst/shared/widgets/cloud_background.dart';
 
 class HelpSupportScreen extends StatelessWidget {
   const HelpSupportScreen({super.key});

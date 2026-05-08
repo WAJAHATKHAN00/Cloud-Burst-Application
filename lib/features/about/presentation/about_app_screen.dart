@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../widgets/cloud_background.dart';
+
+import 'package:cloud_burst/shared/widgets/cloud_background.dart';
 
 class AboutAppScreen extends StatelessWidget {
   const AboutAppScreen({super.key});

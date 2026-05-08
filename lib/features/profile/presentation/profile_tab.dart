@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
-import '../../app_state.dart';
-import '../../routes.dart';
-import '../../widgets/section_title.dart';
+
+import 'package:cloud_burst/app/routing/routes.dart';
 
 class ProfileTab extends StatelessWidget {
   const ProfileTab({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final state = AppStateScope.of(context);
-
     return Padding(
       padding: const EdgeInsets.all(18),
       child: ListView(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../routes.dart';
-import '../../widgets/section_title.dart';
+
+import 'package:cloud_burst/app/routing/routes.dart';
+import 'package:cloud_burst/shared/widgets/section_title.dart';
 
 class AlertsTab extends StatelessWidget {
   const AlertsTab({super.key});
