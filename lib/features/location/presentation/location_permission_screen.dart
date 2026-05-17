@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_burst/app/routing/routes.dart';
 import 'package:cloud_burst/app/state/app_state.dart';
 import 'package:cloud_burst/core/services/device_service.dart';
-import 'package:cloud_burst/core/services/firestore_service.dart';
 import 'package:cloud_burst/core/services/location_service.dart';
+import 'package:cloud_burst/core/services/supabase_service.dart';
 import 'package:cloud_burst/core/services/weather_service.dart';
 import 'package:cloud_burst/shared/widgets/cloud_background.dart';
 import 'package:cloud_burst/shared/widgets/primary_button.dart';
@@ -27,8 +27,6 @@ class LocationPermissionScreen extends StatelessWidget {
             child: Column(
               children: [
                 const SizedBox(height: 6),
-
-                /// INFO CARD
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -38,7 +36,11 @@ class LocationPermissionScreen extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      Icon(Icons.my_location_rounded, size: 48, color: cs.primary),
+                      Icon(
+                        Icons.my_location_rounded,
+                        size: 48,
+                        color: cs.primary,
+                      ),
                       const SizedBox(height: 10),
                       Text(
                         'Enable location for accurate alerts',
@@ -50,68 +52,58 @@ class LocationPermissionScreen extends StatelessWidget {
                       const SizedBox(height: 6),
                       Text(
                         'We use your location to show local weather and cloudburst risk in real time.',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(color: Colors.black54),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyMedium?.copyWith(color: Colors.black54),
                         textAlign: TextAlign.center,
                       ),
                     ],
                   ),
                 ),
-
                 const Spacer(),
-
-                /// ✅ ALLOW LOCATION BUTTON
                 PrimaryButton(
                   label: 'Allow Location',
                   icon: Icons.my_location_rounded,
                   onPressed: () async {
                     try {
-                      var position = await LocationService.getLocation();
-
-                      double lat = position.latitude;
-                      double lng = position.longitude;
-
-                      String deviceId = await DeviceService.getDeviceId();
-
-                      await FirestoreService.saveDeviceLocation(
-                        deviceId: deviceId,
-                        lat: lat,
-                        lng: lng,
-                      );
-
-                      print("Saved to Firebase");
+                      final position = await LocationService.getLocation();
+                      final lat = position.latitude;
+                      final lng = position.longitude;
+                      final deviceId = await DeviceService.getDeviceId();
 
                       final state = AppStateScope.of(context);
-
-                      /// ✅ Save coordinates
                       state.setLocation(lat, lng);
 
-                      /// ✅ Get city name
-                      final cityName =
-                      await WeatherService.getCityName(lat, lng);
-
-                      /// ✅ Set city (with fallback)
+                      final cityName = await WeatherService.getCityName(lat, lng);
                       state.setSelectedCity(
                         cityName.isEmpty
-                            ? "${lat.toStringAsFixed(2)}, ${lng.toStringAsFixed(2)}"
+                            ? '${lat.toStringAsFixed(2)}, ${lng.toStringAsFixed(2)}'
                             : cityName,
                       );
-
-                      /// ✅ Mark location granted
                       state.setLocationGranted(true);
 
+                      try {
+                        await SupabaseService.saveDeviceLocation(
+                          deviceId: deviceId,
+                          lat: lat,
+                          lng: lng,
+                        );
+                      } catch (error) {
+                        debugPrint('Failed to save device location: $error');
+                      }
+
+                      if (!context.mounted) return;
                       Navigator.pushReplacementNamed(context, Routes.shell);
-                    } catch (e) {
-                      print("Error: $e");
+                    } catch (error) {
+                      debugPrint('Error: $error');
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(error.toString())),
+                      );
                     }
                   },
                 ),
-
                 const SizedBox(height: 12),
-
-                /// ❌ WITHOUT LOCATION
                 SecondaryButton(
                   label: 'Continue Without Location',
                   onPressed: () {

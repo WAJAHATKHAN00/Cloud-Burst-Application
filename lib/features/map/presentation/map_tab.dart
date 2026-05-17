@@ -13,11 +13,12 @@ class MapTab extends StatefulWidget {
   State<MapTab> createState() => _MapTabState();
 }
 
-class _MapTabState extends State<MapTab> {
+class _MapTabState extends State<MapTab> with SingleTickerProviderStateMixin {
   final MapController _mapController = MapController();
   final GlobalKey _headerKey = GlobalKey();
   static const String _appUserAgent = 'cloud_burst/1.0';
   static const Color _exactAreaColor = Color(0xFF0EA5E9);
+  late final AnimationController _pulseController;
 
   bool _isLocating = false;
   bool _isAnalyzing = false;
@@ -28,6 +29,26 @@ class _MapTabState extends State<MapTab> {
   LatLng? _lastSeededLocation;
   _RiskAnalysis? _analysis;
   int _analysisRequestId = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2600),
+    )..repeat(reverse: true);
+    _pulseController.addListener(() {
+      if (mounted && _analysis != null) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -428,23 +449,61 @@ class _MapTabState extends State<MapTab> {
     final affectedRadius = analysis.radiusMeters;
     final affectedColor = analysis.color;
     final exactRadius = analysis.exactRadiusMeters;
+    final pulse = Curves.easeInOut.transform(_pulseController.value);
+    final outerPulseRadius = affectedRadius * (1.04 + (pulse * 0.09));
+    final exactPulseRadius = exactRadius * (1.02 + (pulse * 0.05));
 
     return [
       CircleMarker(
         point: analysis.point,
-        radius: affectedRadius,
+        radius: outerPulseRadius,
         useRadiusInMeter: true,
-        color: affectedColor.withValues(alpha: 0.08),
-        borderStrokeWidth: 2,
-        borderColor: affectedColor.withValues(alpha: 0.22),
+        color: affectedColor.withValues(alpha: 0.028 - (pulse * 0.010)),
+        borderStrokeWidth: 0,
       ),
       CircleMarker(
         point: analysis.point,
-        radius: exactRadius,
+        radius: affectedRadius * 0.9,
         useRadiusInMeter: true,
-        color: _exactAreaColor.withValues(alpha: 0.20),
-        borderStrokeWidth: 2.5,
-        borderColor: _exactAreaColor.withValues(alpha: 0.92),
+        color: affectedColor.withValues(alpha: 0.040),
+        borderStrokeWidth: 0,
+      ),
+      CircleMarker(
+        point: analysis.point,
+        radius: affectedRadius * 0.72,
+        useRadiusInMeter: true,
+        color: affectedColor.withValues(alpha: 0.056),
+        borderStrokeWidth: 0,
+      ),
+      CircleMarker(
+        point: analysis.point,
+        radius: affectedRadius * 0.54,
+        useRadiusInMeter: true,
+        color: affectedColor.withValues(alpha: 0.072),
+        borderStrokeWidth: 0.8,
+        borderColor: affectedColor.withValues(alpha: 0.08),
+      ),
+      CircleMarker(
+        point: analysis.point,
+        radius: exactPulseRadius,
+        useRadiusInMeter: true,
+        color: _exactAreaColor.withValues(alpha: 0.07),
+        borderStrokeWidth: 0,
+      ),
+      CircleMarker(
+        point: analysis.point,
+        radius: exactRadius * 0.82,
+        useRadiusInMeter: true,
+        color: _exactAreaColor.withValues(alpha: 0.13),
+        borderStrokeWidth: 0,
+      ),
+      CircleMarker(
+        point: analysis.point,
+        radius: exactRadius * 0.58,
+        useRadiusInMeter: true,
+        color: _exactAreaColor.withValues(alpha: 0.22),
+        borderStrokeWidth: 1.2,
+        borderColor: _exactAreaColor.withValues(alpha: 0.20),
       ),
     ];
   }
