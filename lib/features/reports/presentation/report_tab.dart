@@ -1,7 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
 
 import 'package:cloud_burst/app/state/app_state.dart';
 import 'package:cloud_burst/core/services/device_service.dart';
@@ -117,12 +119,23 @@ class _ReportTabState extends State<ReportTab> {
             const SectionTitle('Location'),
             const SizedBox(height: 8),
             Card(
-              child: ListTile(
-                leading: Icon(Icons.my_location_rounded, color: cs.primary),
-                title: Text(state.selectedCity),
-                subtitle: Text(
-                  'Lat: ${state.latitude.toStringAsFixed(5)}, Lng: ${state.longitude.toStringAsFixed(5)}',
-                ),
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: Icon(Icons.my_location_rounded, color: cs.primary),
+                    title: Text(state.selectedCity),
+                    subtitle: Text(
+                      'Lat: ${state.latitude.toStringAsFixed(5)}, Lng: ${state.longitude.toStringAsFixed(5)}',
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                    child: _ReportLocationMap(
+                      latitude: state.latitude,
+                      longitude: state.longitude,
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 16),
@@ -324,6 +337,63 @@ class _ReportTabState extends State<ReportTab> {
     if (value < 0.34) return 'Low intensity';
     if (value < 0.67) return 'Moderate intensity';
     return 'High intensity';
+  }
+}
+
+class _ReportLocationMap extends StatelessWidget {
+  final double latitude;
+  final double longitude;
+
+  const _ReportLocationMap({
+    required this.latitude,
+    required this.longitude,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final point = LatLng(latitude, longitude);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: SizedBox(
+        height: 150,
+        child: FlutterMap(
+          options: MapOptions(
+            initialCenter: point,
+            initialZoom: 13,
+            interactionOptions: const InteractionOptions(
+              flags: InteractiveFlag.none,
+            ),
+          ),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.example.cloud_burst',
+              tileProvider: NetworkTileProvider(
+                headers: {'User-Agent': 'cloud_burst/1.0'},
+                cachingProvider: const DisabledMapCachingProvider(),
+              ),
+              maxNativeZoom: 19,
+              maxZoom: 19,
+            ),
+            MarkerLayer(
+              markers: [
+                Marker(
+                  point: point,
+                  width: 42,
+                  height: 42,
+                  child: const Icon(
+                    Icons.location_on_rounded,
+                    color: Color(0xFFEF4444),
+                    size: 38,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

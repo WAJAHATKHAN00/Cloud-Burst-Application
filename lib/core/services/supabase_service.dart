@@ -38,7 +38,7 @@ class SupabaseService {
     required double latitude,
     required double longitude,
     String? imageUrl,
-    String status = 'Submitted',
+    String status = 'Pending',
   }) async {
     await _ensureSignedIn();
 
@@ -76,5 +76,32 @@ class SupabaseService {
     return Supabase.instance.client.storage
         .from(_reportImagesBucket)
         .getPublicUrl(filePath);
+  }
+
+  static Stream<List<Map<String, dynamic>>> watchReportsForDevice({
+    required String deviceId,
+  }) async* {
+    await _ensureSignedIn();
+
+    yield* Supabase.instance.client
+        .from(_reportTable)
+        .stream(primaryKey: ['id'])
+        .eq('device_id', deviceId)
+        .order('created_at', ascending: false);
+  }
+
+  static Stream<List<Map<String, dynamic>>> watchApprovedReports() async* {
+    await _ensureSignedIn();
+
+    yield* Supabase.instance.client
+        .from(_reportTable)
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false)
+        .map(
+          (reports) => reports.where((report) {
+            final status = report['status']?.toString().trim().toLowerCase();
+            return status == 'approved';
+          }).toList(),
+        );
   }
 }
