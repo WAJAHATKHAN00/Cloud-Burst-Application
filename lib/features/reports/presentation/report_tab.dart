@@ -66,6 +66,14 @@ class _ReportTabState extends State<ReportTab> {
               runSpacing: 10,
               children: [
                 _TypeChip(
+                  label: 'Cloud Burst',
+                  icon: Icons.thunderstorm_rounded,
+                  selected: _type == 'Cloud Burst',
+                  onTap: _isSubmitting
+                      ? null
+                      : () => setState(() => _type = 'Cloud Burst'),
+                ),
+                _TypeChip(
                   label: 'Heavy Rain',
                   icon: Icons.cloud_rounded,
                   selected: _type == 'Heavy Rain',
@@ -208,9 +216,9 @@ class _ReportTabState extends State<ReportTab> {
                       const SizedBox(height: 8),
                       Text(
                         _selectedImage!.name,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.black54,
-                        ),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: Colors.black54),
                       ),
                     ],
                     const SizedBox(height: 10),
@@ -247,9 +255,7 @@ class _ReportTabState extends State<ReportTab> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.send_rounded),
-                label: Text(
-                  _isSubmitting ? 'Submitting...' : 'Submit Report',
-                ),
+                label: Text(_isSubmitting ? 'Submitting...' : 'Submit Report'),
               ),
             ),
           ],
@@ -292,9 +298,9 @@ class _ReportTabState extends State<ReportTab> {
       _notesCtrl.clear();
       _selectedImage = null;
       _selectedImageBytes = null;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Report submitted: $_type')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Report submitted: $_type')));
     } catch (error) {
       if (!context.mounted) return;
 
@@ -327,9 +333,9 @@ class _ReportTabState extends State<ReportTab> {
     } catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to pick photo: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to pick photo: $error')));
     }
   }
 
@@ -344,10 +350,7 @@ class _ReportLocationMap extends StatelessWidget {
   final double latitude;
   final double longitude;
 
-  const _ReportLocationMap({
-    required this.latitude,
-    required this.longitude,
-  });
+  const _ReportLocationMap({required this.latitude, required this.longitude});
 
   @override
   Widget build(BuildContext context) {
@@ -433,11 +436,7 @@ class _TypeChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 18,
-              color: selected ? cs.primary : Colors.black54,
-            ),
+            Icon(icon, size: 18, color: selected ? cs.primary : Colors.black54),
             const SizedBox(width: 6),
             Text(
               label,

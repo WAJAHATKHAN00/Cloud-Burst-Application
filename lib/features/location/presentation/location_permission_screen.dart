@@ -8,7 +8,6 @@ import 'package:cloud_burst/core/services/supabase_service.dart';
 import 'package:cloud_burst/core/services/weather_service.dart';
 import 'package:cloud_burst/shared/widgets/cloud_background.dart';
 import 'package:cloud_burst/shared/widgets/primary_button.dart';
-import 'package:cloud_burst/shared/widgets/secondary_button.dart';
 
 class LocationPermissionScreen extends StatelessWidget {
   const LocationPermissionScreen({super.key});
@@ -30,9 +29,9 @@ class LocationPermissionScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.85),
+                    color: Colors.white.withValues(alpha: 0.85),
                     borderRadius: BorderRadius.circular(22),
-                    border: Border.all(color: cs.primary.withOpacity(0.10)),
+                    border: Border.all(color: cs.primary.withValues(alpha: 0.10)),
                   ),
                   child: Column(
                     children: [
@@ -65,13 +64,14 @@ class LocationPermissionScreen extends StatelessWidget {
                   label: 'Allow Location',
                   icon: Icons.my_location_rounded,
                   onPressed: () async {
+                    final state = AppStateScope.of(context);
+
                     try {
                       final position = await LocationService.getLocation();
                       final lat = position.latitude;
                       final lng = position.longitude;
                       final deviceId = await DeviceService.getDeviceId();
 
-                      final state = AppStateScope.of(context);
                       state.setLocation(lat, lng);
 
                       final cityName = await WeatherService.getCityName(lat, lng);
@@ -101,15 +101,6 @@ class LocationPermissionScreen extends StatelessWidget {
                         SnackBar(content: Text(error.toString())),
                       );
                     }
-                  },
-                ),
-                const SizedBox(height: 12),
-                SecondaryButton(
-                  label: 'Continue Without Location',
-                  onPressed: () {
-                    final state = AppStateScope.of(context);
-                    state.setLocationGranted(false);
-                    Navigator.pushReplacementNamed(context, Routes.shell);
                   },
                 ),
               ],

@@ -158,6 +158,9 @@ class _ApprovedAlert {
 
   IconData get icon {
     final type = reportType.toLowerCase();
+    if (type.contains('cloud burst') || type.contains('cloudburst')) {
+      return Icons.thunderstorm_rounded;
+    }
     if (type.contains('flood') || type.contains('river')) {
       return Icons.water_drop_rounded;
     }
@@ -216,6 +219,7 @@ class _ApprovedAlert {
   }
 
   static String _titleReportType(String reportType) {
+    if (reportType == 'Cloud Burst') return 'Cloud Burst Reported';
     if (reportType == 'Heavy Rain') return 'Heavy Rainfall';
     if (reportType == 'Landslide') return 'Landslide Reported';
     return reportType;
@@ -328,9 +332,9 @@ class _MessageState extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w900,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 6),
             Text(

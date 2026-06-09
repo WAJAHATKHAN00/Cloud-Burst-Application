@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:cloud_burst/app/state/app_state.dart';
 import 'package:cloud_burst/core/services/location_service.dart';
 import 'package:cloud_burst/core/services/prediction_service.dart';
+import 'package:cloud_burst/core/services/supabase_service.dart';
 import 'package:cloud_burst/core/services/weather_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -18,7 +21,11 @@ class _MapTabState extends State<MapTab> with SingleTickerProviderStateMixin {
   final GlobalKey _headerKey = GlobalKey();
   static const String _appUserAgent = 'cloud_burst/1.0';
   static const Color _exactAreaColor = Color(0xFF0EA5E9);
+  static const Duration _approvedAlertLifetime = Duration(hours: 24);
+  static const double _approvedAlertRadiusMeters = 420;
   late final AnimationController _pulseController;
+  late final Stream<List<Map<String, dynamic>>> _approvedReportsStream;
+  Timer? _approvedAlertExpiryTimer;
 
   bool _isLocating = false;
   bool _isAnalyzing = false;
@@ -33,6 +40,10 @@ class _MapTabState extends State<MapTab> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    _approvedReportsStream = SupabaseService.watchApprovedReports();
+    _approvedAlertExpiryTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2600),
@@ -46,6 +57,7 @@ class _MapTabState extends State<MapTab> with SingleTickerProviderStateMixin {
 
   @override
   void dispose() {
+    _approvedAlertExpiryTimer?.cancel();
     _pulseController.dispose();
     super.dispose();
   }
@@ -61,215 +73,247 @@ class _MapTabState extends State<MapTab> with SingleTickerProviderStateMixin {
 
     _syncSeedLocation(currentLocation, state.selectedCity);
 
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFFDFF1FF),
-                  Color(0xFFF8FBFF),
-                  Color(0xFFE6F5EA),
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _approvedReportsStream,
+      builder: (context, snapshot) {
+        final approvedAlerts = _activeApprovedAlerts(
+          snapshot.data ?? const <Map<String, dynamic>>[],
+        );
+
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFFDFF1FF),
+                      Color(0xFFF8FBFF),
+                      Color(0xFFE6F5EA),
+                    ],
+                  ),
+                ),
+                child: FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: currentLocation,
+                    initialZoom: 11,
+                    onMapReady: () {
+                      if (!mounted) return;
+                      setState(() => _isMapReady = true);
+                    },
+                    onTap: (_, point) => _analyzeLocation(point),
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      fallbackUrl:
+                          'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.example.cloud_burst',
+                      tileProvider: NetworkTileProvider(
+                        headers: {'User-Agent': _appUserAgent},
+                        cachingProvider: const DisabledMapCachingProvider(),
+                      ),
+                      maxNativeZoom: 19,
+                      maxZoom: 19,
+                      errorTileCallback: (tile, error, stackTrace) {
+                        if (!mounted || _tileLoadFailed) return;
+                        setState(() => _tileLoadFailed = true);
+                      },
+                    ),
+                    if (approvedAlerts.isNotEmpty)
+                      CircleLayer(
+                        circles: _buildApprovedAlertCircles(approvedAlerts),
+                      ),
+                    if (_analysis != null)
+                      CircleLayer(circles: _buildRiskCircles(_analysis!)),
+                    MarkerLayer(
+                      markers: [
+                        ...approvedAlerts.map(
+                          (alert) => Marker(
+                            point: alert.point,
+                            width: 38,
+                            height: 38,
+                            child: _ApprovedAlertMarker(alert: alert),
+                          ),
+                        ),
+                        Marker(
+                          point: currentLocation,
+                          width: 18,
+                          height: 18,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2563EB),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 3),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(
+                                    0xFF2563EB,
+                                  ).withValues(alpha: 0.35),
+                                  blurRadius: 14,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (_selectedPoint != null)
+                          Marker(
+                            point: _selectedPoint!,
+                            width: 42,
+                            height: 42,
+                            child: _SelectionMarker(
+                              color:
+                                  _analysis?.color ?? const Color(0xFF0F172A),
+                              isLoading: _isAnalyzing,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        const Color(0xFF031525).withValues(alpha: 0.30),
+                        Colors.transparent,
+                        Colors.transparent,
+                        const Color(0xFF031525).withValues(alpha: 0.22),
+                      ],
+                      stops: const [0, 0.18, 0.58, 1],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: 16,
+                    left: 16,
+                    right: 16,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Container(
+                            key: _headerKey,
+                            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xFF031525,
+                              ).withValues(alpha: 0.80),
+                              borderRadius: BorderRadius.circular(22),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.20),
+                                  blurRadius: 22,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Cloudburst Risk Monitor',
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Tap anywhere to analyze risk at that location.',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.78),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        _LocateButton(
+                          isLocating: _isLocating,
+                          onPressed: _locateMe,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    top: chipTop,
+                    left: 16,
+                    right: 16,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: _MapBadge(
+                        icon: _isAnalyzing
+                            ? Icons.touch_app_rounded
+                            : Icons.radar_rounded,
+                        text: _isAnalyzing
+                            ? 'Analyzing selected point...'
+                            : (_analysis?.riskLabel ?? 'No zone selected'),
+                        color: _isAnalyzing ? null : _analysis?.color,
+                      ),
+                    ),
+                  ),
+                  if (approvedAlerts.isNotEmpty)
+                    Positioned(
+                      top: chipTop + 52,
+                      right: 16,
+                      child: _ApprovedWarningsLegend(alerts: approvedAlerts),
+                    ),
+                  if (_tileLoadFailed)
+                    Positioned(
+                      left: 16,
+                      right: 16,
+                      top: errorTop,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(
+                            0xFFFFF7ED,
+                          ).withValues(alpha: 0.96),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFF59E0B)),
+                        ),
+                        child: Text(
+                          'Map tiles failed to load. Restart the app so updated internet permissions are applied.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: const Color(0xFF9A3412),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  Positioned.fill(
+                    child: _BottomOverlay(
+                      analysis: _analysis,
+                      isLoading: _isAnalyzing,
+                    ),
+                  ),
                 ],
               ),
             ),
-            child: FlutterMap(
-              mapController: _mapController,
-              options: MapOptions(
-                initialCenter: currentLocation,
-                initialZoom: 11,
-                onMapReady: () {
-                  if (!mounted) return;
-                  setState(() => _isMapReady = true);
-                },
-                onTap: (_, point) => _analyzeLocation(point),
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  fallbackUrl: 'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.example.cloud_burst',
-                  tileProvider: NetworkTileProvider(
-                    headers: {'User-Agent': _appUserAgent},
-                    cachingProvider: const DisabledMapCachingProvider(),
-                  ),
-                  maxNativeZoom: 19,
-                  maxZoom: 19,
-                  errorTileCallback: (tile, error, stackTrace) {
-                    if (!mounted || _tileLoadFailed) return;
-                    setState(() => _tileLoadFailed = true);
-                  },
-                ),
-                if (_analysis != null)
-                  CircleLayer(
-                    circles: _buildRiskCircles(_analysis!),
-                  ),
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: currentLocation,
-                      width: 18,
-                      height: 18,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2563EB),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF2563EB).withValues(
-                                alpha: 0.35,
-                              ),
-                              blurRadius: 14,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (_selectedPoint != null)
-                      Marker(
-                        point: _selectedPoint!,
-                        width: 42,
-                        height: 42,
-                        child: _SelectionMarker(
-                          color: _analysis?.color ?? const Color(0xFF0F172A),
-                          isLoading: _isAnalyzing,
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-        Positioned.fill(
-          child: IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    const Color(0xFF031525).withValues(alpha: 0.30),
-                    Colors.transparent,
-                    Colors.transparent,
-                    const Color(0xFF031525).withValues(alpha: 0.22),
-                  ],
-                  stops: const [0, 0.18, 0.58, 1],
-                ),
-              ),
-            ),
-          ),
-        ),
-        SafeArea(
-          child: Stack(
-            children: [
-              Positioned(
-                top: 16,
-                left: 16,
-                right: 16,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Container(
-                        key: _headerKey,
-                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF031525).withValues(alpha: 0.80),
-                          borderRadius: BorderRadius.circular(22),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.20),
-                              blurRadius: 22,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Cloudburst Risk Monitor',
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Tap anywhere to analyze risk at that location.',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.78),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox( width: 12),
-                    _LocateButton(
-                      isLocating: _isLocating,
-                      onPressed: _locateMe,
-                    ),
-                  ],
-                ),
-              ),
-              Positioned(
-                top: chipTop,
-                left: 16,
-                right: 16,
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: _MapBadge(
-                    icon: _isAnalyzing
-                        ? Icons.touch_app_rounded
-                        : Icons.radar_rounded,
-                    text: _isAnalyzing
-                        ? 'Analyzing selected point...'
-                        : (_analysis?.riskLabel ?? 'No zone selected'),
-                    color: _isAnalyzing ? null : _analysis?.color,
-                  ),
-                ),
-              ),
-              if (_tileLoadFailed)
-                Positioned(
-                  left: 16,
-                  right: 16,
-                  top: errorTop,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF7ED).withValues(alpha: 0.96),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFF59E0B)),
-                    ),
-                    child: Text(
-                      'Map tiles failed to load. Restart the app so updated internet permissions are applied.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: const Color(0xFF9A3412),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              Positioned.fill(
-                child: _BottomOverlay(
-                  analysis: _analysis,
-                  isLoading: _isAnalyzing,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 
@@ -508,6 +552,55 @@ class _MapTabState extends State<MapTab> with SingleTickerProviderStateMixin {
     ];
   }
 
+  List<_ApprovedMapAlert> _activeApprovedAlerts(
+    List<Map<String, dynamic>> reports,
+  ) {
+    final now = DateTime.now();
+
+    return reports
+        .map(_ApprovedMapAlert.fromMap)
+        .where((alert) {
+          if (!alert.hasCoordinates) return false;
+
+          final createdAt = alert.createdAt;
+          if (createdAt == null) return false;
+
+          final age = now.difference(createdAt.toLocal());
+          return !age.isNegative && age < _approvedAlertLifetime;
+        })
+        .toList(growable: false);
+  }
+
+  List<CircleMarker> _buildApprovedAlertCircles(
+    List<_ApprovedMapAlert> alerts,
+  ) {
+    return [
+      for (final alert in alerts) ...[
+        CircleMarker(
+          point: alert.point,
+          radius: _approvedAlertRadiusMeters * 1.38,
+          useRadiusInMeter: true,
+          color: alert.color.withValues(alpha: 0.035),
+          borderStrokeWidth: 0,
+        ),
+        CircleMarker(
+          point: alert.point,
+          radius: _approvedAlertRadiusMeters,
+          useRadiusInMeter: true,
+          color: alert.color.withValues(alpha: 0.10),
+          borderStrokeWidth: 1.2,
+          borderColor: alert.color.withValues(alpha: 0.34),
+        ),
+        CircleMarker(
+          point: alert.point,
+          radius: _approvedAlertRadiusMeters * 0.48,
+          useRadiusInMeter: true,
+          color: alert.color.withValues(alpha: 0.18),
+          borderStrokeWidth: 0,
+        ),
+      ],
+    ];
+  }
 }
 
 class _RiskAnalysis {
@@ -547,6 +640,192 @@ class _RiskAnalysis {
       color: color,
       exactRadiusMeters: exactRadiusMeters,
       radiusMeters: radiusMeters,
+    );
+  }
+}
+
+class _ApprovedMapAlert {
+  final LatLng point;
+  final String reportType;
+  final DateTime? createdAt;
+  final bool hasCoordinates;
+
+  const _ApprovedMapAlert({
+    required this.point,
+    required this.reportType,
+    required this.createdAt,
+    required this.hasCoordinates,
+  });
+
+  factory _ApprovedMapAlert.fromMap(Map<String, dynamic> map) {
+    final latitude = _readDouble(map['latitude']);
+    final longitude = _readDouble(map['longitude']);
+
+    return _ApprovedMapAlert(
+      point: LatLng(latitude ?? 0, longitude ?? 0),
+      reportType: _readText(map['reports_type'], fallback: 'Warning'),
+      createdAt: _readDate(map['created_at']),
+      hasCoordinates:
+          latitude != null &&
+          longitude != null &&
+          latitude >= -90 &&
+          latitude <= 90 &&
+          longitude >= -180 &&
+          longitude <= 180,
+    );
+  }
+
+  Color get color => _approvedReportColor(reportType);
+
+  IconData get icon {
+    final type = reportType.toLowerCase();
+    if (type.contains('cloud burst') || type.contains('cloudburst')) {
+      return Icons.thunderstorm_rounded;
+    }
+    if (type.contains('flood') || type.contains('overflow')) {
+      return Icons.water_drop_rounded;
+    }
+    if (type.contains('landslide')) return Icons.landscape_rounded;
+    if (type.contains('rock')) return Icons.terrain_rounded;
+    if (type.contains('snow')) return Icons.ac_unit_rounded;
+    return Icons.warning_amber_rounded;
+  }
+
+  String get legendLabel {
+    final type = reportType.toLowerCase();
+    if (type.contains('overflow')) return 'Overflow';
+    if (type.contains('landslide')) return 'Landslide';
+    if (type.contains('flood')) return 'Flood';
+    if (type.contains('cloud burst') || type.contains('cloudburst')) {
+      return 'Cloudburst';
+    }
+    if (type.contains('rain')) return 'Heavy Rain';
+    return reportType;
+  }
+
+  static String _readText(dynamic value, {required String fallback}) {
+    final text = value?.toString().trim();
+    return text == null || text.isEmpty ? fallback : text;
+  }
+
+  static double? _readDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '');
+  }
+
+  static DateTime? _readDate(dynamic value) {
+    if (value == null) return null;
+    return DateTime.tryParse(value.toString());
+  }
+}
+
+class _ApprovedAlertMarker extends StatelessWidget {
+  final _ApprovedMapAlert alert;
+
+  const _ApprovedAlertMarker({required this.alert});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = alert.color;
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.20),
+            shape: BoxShape.circle,
+            border: Border.all(color: color.withValues(alpha: 0.42), width: 2),
+          ),
+        ),
+        Container(
+          width: 22,
+          height: 22,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(color: color.withValues(alpha: 0.24), blurRadius: 10),
+            ],
+          ),
+          child: Icon(alert.icon, color: color, size: 15),
+        ),
+      ],
+    );
+  }
+}
+
+class _ApprovedWarningsLegend extends StatelessWidget {
+  final List<_ApprovedMapAlert> alerts;
+
+  const _ApprovedWarningsLegend({required this.alerts});
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleTypes = <String, Color>{};
+    for (final alert in alerts) {
+      visibleTypes.putIfAbsent(alert.legendLabel, () => alert.color);
+    }
+
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 156),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.14),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final entry in visibleTypes.entries) ...[
+            _ApprovedLegendRow(label: entry.key, color: entry.value),
+            if (entry.key != visibleTypes.keys.last) const SizedBox(height: 6),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ApprovedLegendRow extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _ApprovedLegendRow({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 7),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: const Color(0xFF334155),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -595,10 +874,7 @@ class _LocateButton extends StatelessWidget {
   final bool isLocating;
   final VoidCallback onPressed;
 
-  const _LocateButton({
-    required this.isLocating,
-    required this.onPressed,
-  });
+  const _LocateButton({required this.isLocating, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -628,7 +904,10 @@ class _LocateButton extends StatelessWidget {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2.2),
                   )
-                : const Icon(Icons.my_location_rounded, color: Color(0xFF0F172A)),
+                : const Icon(
+                    Icons.my_location_rounded,
+                    color: Color(0xFF0F172A),
+                  ),
           ),
         ),
       ),
@@ -730,10 +1009,7 @@ class _AnalysisSheet extends StatelessWidget {
   final _RiskAnalysis? analysis;
   final bool isLoading;
 
-  const _AnalysisSheet({
-    required this.analysis,
-    required this.isLoading,
-  });
+  const _AnalysisSheet({required this.analysis, required this.isLoading});
 
   @override
   Widget build(BuildContext context) {
@@ -769,9 +1045,7 @@ class _AnalysisSheet extends StatelessWidget {
               ),
               child: DecoratedBox(
                 decoration: const BoxDecoration(
-                  border: Border(
-                    top: BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
+                  border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
                 ),
                 child: ListView(
                   controller: scrollController,
@@ -810,7 +1084,8 @@ class _AnalysisSheet extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  analysis?.message ?? 'Checking live conditions...',
+                                  analysis?.message ??
+                                      'Checking live conditions...',
                                   style: theme.textTheme.bodyMedium?.copyWith(
                                     color: const Color(0xFF475569),
                                     fontWeight: FontWeight.w600,
@@ -840,10 +1115,7 @@ class _AnalysisSheet extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 14),
-                      _WeatherSignalCard(
-                        analysis: analysis!,
-                        color: color,
-                      ),
+                      _WeatherSignalCard(analysis: analysis!, color: color),
                       const SizedBox(height: 14),
                       _ZoneLegendCard(
                         analysis: analysis!,
@@ -896,10 +1168,7 @@ class _WeatherSignalCard extends StatelessWidget {
   final _RiskAnalysis analysis;
   final Color color;
 
-  const _WeatherSignalCard({
-    required this.analysis,
-    required this.color,
-  });
+  const _WeatherSignalCard({required this.analysis, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -962,10 +1231,7 @@ class _ZoneLegendCard extends StatelessWidget {
   final _RiskAnalysis analysis;
   final Color affectedColor;
 
-  const _ZoneLegendCard({
-    required this.analysis,
-    required this.affectedColor,
-  });
+  const _ZoneLegendCard({required this.analysis, required this.affectedColor});
 
   @override
   Widget build(BuildContext context) {
@@ -1043,10 +1309,7 @@ class _LegendRow extends StatelessWidget {
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 1.5),
             boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: 0.22),
-                blurRadius: 10,
-              ),
+              BoxShadow(color: color.withValues(alpha: 0.22), blurRadius: 10),
             ],
           ),
         ),
@@ -1082,10 +1345,7 @@ class _ConfidenceMeter extends StatelessWidget {
   final int value;
   final Color color;
 
-  const _ConfidenceMeter({
-    required this.value,
-    required this.color,
-  });
+  const _ConfidenceMeter({required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -1187,6 +1447,20 @@ String _zoneLabel(double radiusMeters) {
   return '${radiusMeters.round()} m hotspot';
 }
 
+Color _approvedReportColor(String reportType) {
+  final type = reportType.toLowerCase();
+  if (type.contains('overflow')) return const Color(0xFFEF4444);
+  if (type.contains('landslide')) return const Color(0xFF2563EB);
+  if (type.contains('flood')) return const Color(0xFF2E7D32);
+  if (type.contains('cloud burst') || type.contains('cloudburst')) {
+    return const Color(0xFFB7791F);
+  }
+  if (type.contains('rain')) return const Color(0xFF7C3AED);
+  if (type.contains('rock')) return const Color(0xFF78716C);
+  if (type.contains('snow')) return const Color(0xFF0284C7);
+  return const Color(0xFFEF4444);
+}
+
 IconData _weatherIcon(String condition) {
   switch (condition.toLowerCase()) {
     case 'clear':
@@ -1246,4 +1520,3 @@ String _weatherSubline(String condition, int rainChance, String riskLabel) {
   }
   return 'Current forecast suggests localized weather development.';
 }
-
