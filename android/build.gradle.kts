@@ -1,3 +1,18 @@
+import org.gradle.api.Project
+
+plugins {
+}
+
+val forcedNdkVersion = "27.0.12077973"
+
+fun Project.forceAndroidNdkVersion(version: String) {
+    extensions.findByName("android")?.let { androidExtension ->
+        androidExtension.javaClass.methods
+            .firstOrNull { it.name == "setNdkVersion" && it.parameterCount == 1 }
+            ?.invoke(androidExtension, version)
+    }
+}
+
 allprojects {
     repositories {
         google()
@@ -17,6 +32,14 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
+
+    plugins.withId("com.android.application") {
+        forceAndroidNdkVersion(forcedNdkVersion)
+    }
+
+    plugins.withId("com.android.library") {
+        forceAndroidNdkVersion(forcedNdkVersion)
+    }
 }
 
 tasks.register<Delete>("clean") {
