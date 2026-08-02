@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'package:cloud_burst/app/state/app_state.dart';
+import 'package:cloud_burst/app/theme/app_theme.dart';
 import 'package:cloud_burst/core/services/device_service.dart';
 import 'package:cloud_burst/core/services/supabase_service.dart';
 import 'package:cloud_burst/shared/widgets/section_title.dart';
@@ -36,38 +37,40 @@ class _ReportTabState extends State<ReportTab> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final state = AppStateScope.of(context);
 
     return Padding(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Form(
         key: _formKey,
         child: ListView(
           children: [
+            const SizedBox(height: 16),
             Text(
-              'Report Incident',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+              'SUBMIT REPORT',
+              style: AppTheme.microLabel(
+                fontSize: 17,
+                color: AppTheme.ink,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(
               'Share real-world observations and save them to Supabase.',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: AppTheme.slate),
             ),
-            const SizedBox(height: 12),
-            const SectionTitle('Select incident type'),
+            const SizedBox(height: 16),
+            const SectionTitle('INCIDENT TYPE'),
             const SizedBox(height: 10),
             Wrap(
-              spacing: 10,
-              runSpacing: 10,
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 _TypeChip(
                   label: 'Cloud Burst',
-                  icon: Icons.thunderstorm_rounded,
                   selected: _type == 'Cloud Burst',
                   onTap: _isSubmitting
                       ? null
@@ -75,7 +78,6 @@ class _ReportTabState extends State<ReportTab> {
                 ),
                 _TypeChip(
                   label: 'Heavy Rain',
-                  icon: Icons.cloud_rounded,
                   selected: _type == 'Heavy Rain',
                   onTap: _isSubmitting
                       ? null
@@ -83,7 +85,6 @@ class _ReportTabState extends State<ReportTab> {
                 ),
                 _TypeChip(
                   label: 'Flooding',
-                  icon: Icons.water_drop_rounded,
                   selected: _type == 'Flooding',
                   onTap: _isSubmitting
                       ? null
@@ -91,7 +92,6 @@ class _ReportTabState extends State<ReportTab> {
                 ),
                 _TypeChip(
                   label: 'Landslide',
-                  icon: Icons.landscape_rounded,
                   selected: _type == 'Landslide',
                   onTap: _isSubmitting
                       ? null
@@ -99,7 +99,6 @@ class _ReportTabState extends State<ReportTab> {
                 ),
                 _TypeChip(
                   label: 'Rock Falling',
-                  icon: Icons.terrain_rounded,
                   selected: _type == 'Rock Falling',
                   onTap: _isSubmitting
                       ? null
@@ -107,7 +106,6 @@ class _ReportTabState extends State<ReportTab> {
                 ),
                 _TypeChip(
                   label: 'Snowfall',
-                  icon: Icons.ac_unit_rounded,
                   selected: _type == 'Snowfall',
                   onTap: _isSubmitting
                       ? null
@@ -115,7 +113,6 @@ class _ReportTabState extends State<ReportTab> {
                 ),
                 _TypeChip(
                   label: 'River Overflow',
-                  icon: Icons.waves_rounded,
                   selected: _type == 'River Overflow',
                   onTap: _isSubmitting
                       ? null
@@ -123,141 +120,234 @@ class _ReportTabState extends State<ReportTab> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            const SectionTitle('Location'),
+            const SizedBox(height: 20),
+
+            // ── Location row ──
+            const SectionTitle('LOCATION'),
             const SizedBox(height: 8),
-            Card(
-              child: Column(
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: const BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: AppTheme.divider, width: 0.5),
+                ),
+              ),
+              child: Row(
                 children: [
-                  ListTile(
-                    leading: Icon(Icons.my_location_rounded, color: cs.primary),
-                    title: Text(state.selectedCity),
-                    subtitle: Text(
-                      'Lat: ${state.latitude.toStringAsFixed(5)}, Lng: ${state.longitude.toStringAsFixed(5)}',
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-                    child: _ReportLocationMap(
-                      latitude: state.latitude,
-                      longitude: state.longitude,
+                  Icon(Icons.location_on_outlined,
+                      size: 18, color: AppTheme.slate),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          state.selectedCity,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${state.latitude.toStringAsFixed(5)}, ${state.longitude.toStringAsFixed(5)}',
+                          style: AppTheme.mono(
+                            fontSize: 10,
+                            color: AppTheme.slate,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            const SectionTitle('Intensity'),
+
+            // ── Mini map ──
             const SizedBox(height: 8),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _labelForIntensity(_intensity),
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: Container(
+                height: 120,
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppTheme.divider, width: 0.5),
+                ),
+                child: _ReportLocationMap(
+                  latitude: state.latitude,
+                  longitude: state.longitude,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // ── Intensity ──
+            const SectionTitle('INTENSITY'),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: const BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: AppTheme.divider, width: 0.5),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _labelForIntensity(_intensity).toUpperCase(),
+                    style: AppTheme.microLabel(
+                      fontSize: 10,
+                      color: AppTheme.ink,
+                      fontWeight: FontWeight.w500,
                     ),
-                    Slider(
+                  ),
+                  SliderTheme(
+                    data: SliderThemeData(
+                      activeTrackColor: AppTheme.ink,
+                      inactiveTrackColor: AppTheme.divider,
+                      thumbColor: AppTheme.ink,
+                      overlayColor: AppTheme.ink.withValues(alpha: 0.1),
+                      trackHeight: 3,
+                      thumbShape:
+                          const RoundSliderThumbShape(enabledThumbRadius: 7),
+                    ),
+                    child: Slider(
                       value: _intensity,
                       onChanged: _isSubmitting
                           ? null
                           : (value) => setState(() => _intensity = value),
                     ),
-                    Text(
-                      'Low - Moderate - High',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: Colors.black54),
-                    ),
-                  ],
-                ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('LOW',
+                          style: AppTheme.microLabel(
+                              fontSize: 9, color: AppTheme.slate)),
+                      Text('MODERATE',
+                          style: AppTheme.microLabel(
+                              fontSize: 9, color: AppTheme.slate)),
+                      Text('HIGH',
+                          style: AppTheme.microLabel(
+                              fontSize: 9, color: AppTheme.slate)),
+                    ],
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            const SectionTitle('Report details'),
+
+            const SizedBox(height: 20),
+
+            // ── Photo & description ──
+            const SectionTitle('REPORT DETAILS'),
             const SizedBox(height: 8),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
+
+            // Photo button row
+            InkWell(
+              onTap: _isSubmitting ? null : _pickPhoto,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: const BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: AppTheme.divider, width: 0.5),
+                  ),
+                ),
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _isSubmitting ? null : _pickPhoto,
-                            icon: const Icon(Icons.photo_camera_outlined),
-                            label: Text(
-                              _selectedImage == null
-                                  ? 'Add Photo'
-                                  : 'Change Photo',
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (_selectedImageBytes != null) ...[
-                      const SizedBox(height: 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Image.memory(
-                          _selectedImageBytes!,
-                          height: 180,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ],
-                    if (_selectedImage != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        _selectedImage!.name,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodySmall?.copyWith(color: Colors.black54),
-                      ),
-                    ],
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _notesCtrl,
-                      maxLines: 5,
-                      enabled: !_isSubmitting,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter report details.';
-                        }
-                        return null;
-                      },
-                      decoration: const InputDecoration(
-                        prefixIcon: Icon(Icons.notes_rounded),
-                        hintText: 'Describe what happened',
+                    Icon(Icons.photo_camera_outlined,
+                        size: 18, color: AppTheme.slate),
+                    const SizedBox(width: 8),
+                    Text(
+                      _selectedImage == null
+                          ? 'ADD PHOTO'
+                          : 'CHANGE PHOTO',
+                      style: AppTheme.microLabel(
+                        fontSize: 10,
+                        color: AppTheme.ink,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
+                    const Spacer(),
+                    Icon(Icons.chevron_right, size: 18, color: AppTheme.slate),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+
+            if (_selectedImageBytes != null) ...[
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: Image.memory(
+                  _selectedImageBytes!,
+                  height: 140,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ],
+            if (_selectedImage != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                _selectedImage!.name,
+                style: AppTheme.mono(fontSize: 10, color: AppTheme.slate),
+              ),
+            ],
+
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _notesCtrl,
+              maxLines: 5,
+              enabled: !_isSubmitting,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter report details.';
+                }
+                return null;
+              },
+              decoration: const InputDecoration(
+                hintText: 'Describe what happened',
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Submit button — the one filled button in the app
             SizedBox(
               height: 52,
-              child: FilledButton.icon(
+              child: FilledButton(
                 onPressed: _isSubmitting
                     ? null
                     : () => _submitReport(context, state),
-                icon: _isSubmitting
-                    ? const SizedBox(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppTheme.ink,
+                  foregroundColor: AppTheme.paper,
+                  disabledBackgroundColor: AppTheme.divider,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                child: _isSubmitting
+                    ? SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppTheme.paper,
+                        ),
                       )
-                    : const Icon(Icons.send_rounded),
-                label: Text(_isSubmitting ? 'Submitting...' : 'Submit Report'),
+                    : Text(
+                        'SUBMIT REPORT',
+                        style: AppTheme.microLabel(
+                          fontSize: 12,
+                          color: AppTheme.paper,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
               ),
             ),
+            const SizedBox(height: 40),
           ],
         ),
       ),
@@ -356,96 +446,78 @@ class _ReportLocationMap extends StatelessWidget {
   Widget build(BuildContext context) {
     final point = LatLng(latitude, longitude);
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: SizedBox(
-        height: 150,
-        child: FlutterMap(
-          options: MapOptions(
-            initialCenter: point,
-            initialZoom: 13,
-            interactionOptions: const InteractionOptions(
-              flags: InteractiveFlag.none,
-            ),
+    return FlutterMap(
+      options: MapOptions(
+        initialCenter: point,
+        initialZoom: 13,
+        interactionOptions: const InteractionOptions(
+          flags: InteractiveFlag.none,
+        ),
+      ),
+      children: [
+        TileLayer(
+          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          userAgentPackageName: 'com.example.cloud_burst',
+          tileProvider: NetworkTileProvider(
+            headers: {'User-Agent': 'cloud_burst/1.0'},
+            cachingProvider: const DisabledMapCachingProvider(),
           ),
-          children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.example.cloud_burst',
-              tileProvider: NetworkTileProvider(
-                headers: {'User-Agent': 'cloud_burst/1.0'},
-                cachingProvider: const DisabledMapCachingProvider(),
-              ),
-              maxNativeZoom: 19,
-              maxZoom: 19,
-            ),
-            MarkerLayer(
-              markers: [
-                Marker(
-                  point: point,
-                  width: 42,
-                  height: 42,
-                  child: const Icon(
-                    Icons.location_on_rounded,
-                    color: Color(0xFFEF4444),
-                    size: 38,
-                  ),
+          maxNativeZoom: 19,
+          maxZoom: 19,
+        ),
+        MarkerLayer(
+          markers: [
+            Marker(
+              point: point,
+              width: 18,
+              height: 18,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.hazardRed,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppTheme.paper, width: 2),
                 ),
-              ],
+              ),
             ),
           ],
         ),
-      ),
+      ],
     );
   }
 }
 
 class _TypeChip extends StatelessWidget {
   final String label;
-  final IconData icon;
   final bool selected;
   final VoidCallback? onTap;
 
   const _TypeChip({
     required this.label,
-    required this.icon,
     required this.selected,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: selected
-              ? cs.primary.withValues(alpha: 0.12)
-              : Colors.white.withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(999),
+          color: selected ? AppTheme.ink : Colors.transparent,
+          borderRadius: BorderRadius.circular(4),
           border: Border.all(
-            color: selected
-                ? cs.primary.withValues(alpha: 0.35)
-                : cs.primary.withValues(alpha: 0.10),
+            color: selected ? AppTheme.ink : AppTheme.divider,
+            width: 0.5,
           ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: selected ? cs.primary : Colors.black54),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: selected ? cs.primary : Colors.black87,
-              ),
-            ),
-          ],
+        child: Text(
+          label.toUpperCase(),
+          style: AppTheme.microLabel(
+            fontSize: 10,
+            color: selected ? AppTheme.paper : AppTheme.ink,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ),
     );

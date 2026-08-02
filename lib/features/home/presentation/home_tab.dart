@@ -1,11 +1,13 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'package:cloud_burst/app/routing/routes.dart';
 import 'package:cloud_burst/app/state/app_state.dart';
+import 'package:cloud_burst/app/theme/app_theme.dart';
 import 'package:cloud_burst/core/services/prediction_service.dart';
 import 'package:cloud_burst/core/services/weather_service.dart';
 import 'package:cloud_burst/features/alerts/presentation/alert_detail_screen.dart';
-import 'package:cloud_burst/shared/widgets/section_title.dart';
 
 class HomeTab extends StatefulWidget {
   const HomeTab({super.key});
@@ -91,9 +93,7 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   Color getRiskColor() {
-    if (risk.contains('HIGH')) return const Color(0xFFEF4444);
-    if (risk.contains('MODERATE')) return Colors.orange;
-    return Colors.green;
+    return AppTheme.severityColor(risk);
   }
 
   String normalizeRiskLabel(String value) {
@@ -151,388 +151,421 @@ class _HomeTabState extends State<HomeTab> {
     return formatHour(localTime);
   }
 
+  double _riskPercent() {
+    if (probability == '--') return 0;
+    final raw = probability.replaceAll('%', '');
+    return (double.tryParse(raw) ?? 0).clamp(0, 100);
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = AppStateScope.of(context);
-    final cs = Theme.of(context).colorScheme;
     final forecastTimezone =
         ((_forecastData?['city'] as Map<String, dynamic>?)?['timezone'] as num?)
-            ?.toInt() ??
-        0;
+                ?.toInt() ??
+            0;
     final currentTimeLabel = _currentWeatherData == null
         ? '--'
         : formatCurrentTime(forecastTimezone);
 
+    final riskPct = _riskPercent();
+    final riskColor = getRiskColor();
+
     return Padding(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: ListView(
         children: [
+          const SizedBox(height: 16),
+          // ── Top row: location + synced timestamp ──
           Row(
             children: [
               Expanded(
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(14),
-                  onTap: () => Navigator.pushNamed(context, Routes.citySearch),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 12,
-                      horizontal: 12,
+                child: GestureDetector(
+                  onTap: () =>
+                      Navigator.pushNamed(context, Routes.citySearch),
+                  child: Text(
+                    state.selectedCity.toUpperCase(),
+                    style: AppTheme.microLabel(
+                      fontSize: 12,
+                      color: AppTheme.ink,
+                      fontWeight: FontWeight.w500,
                     ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.92),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: cs.primary.withOpacity(0.22),
-                        width: 1.2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.place_rounded, color: cs.primary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            state.selectedCity,
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w900),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          Icons.search_rounded,
-                          color: cs.primary,
-                          size: 20,
-                        ),
-                      ],
-                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
-              IconButton(
-                onPressed: loadData,
-                icon: const Icon(Icons.refresh_rounded),
+              Text(
+                'SYNCED ${currentTimeLabel.toUpperCase()}',
+                style: AppTheme.mono(
+                  fontSize: 10,
+                  color: AppTheme.slate,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: getRiskColor().withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.warning_amber_rounded,
-                              size: 18,
-                              color: getRiskColor(),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              risk,
-                              style: TextStyle(
-                                color: getRiskColor(),
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Spacer(),
-                      const Text(
-                        'Live',
-                        style: TextStyle(color: Colors.black54, fontSize: 12),
-                      ),
-                    ],
+          const SizedBox(height: 20),
+
+          // ── CLOUDBURST RISK INDEX label ──
+          Text(
+            'CLOUDBURST RISK INDEX',
+            style: AppTheme.microLabel(
+              fontSize: 10,
+              color: AppTheme.slate,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // ── Risk dial ──
+          SizedBox(
+            height: 200,
+            child: CustomPaint(
+              painter: _RiskDialPainter(
+                percent: riskPct,
+                severityColor: riskColor,
+              ),
+              size: const Size(double.infinity, 200),
+            ),
+          ),
+
+          // ── Big mono percentage ──
+          Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  probability == '--'
+                      ? '--'
+                      : probability.replaceAll('%', ''),
+                  style: AppTheme.mono(
+                    fontSize: 34,
+                    fontWeight: FontWeight.w500,
+                    color: riskColor,
                   ),
-                  const SizedBox(height: 12),
+                ),
+                if (probability != '--')
                   Text(
-                    'Current conditions',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
+                    ' %',
+                    style: AppTheme.mono(
+                      fontSize: 16,
+                      color: AppTheme.slate,
                     ),
                   ),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        '$temperature C',
-                        style: Theme.of(context).textTheme.headlineMedium
-                            ?.copyWith(fontWeight: FontWeight.w900),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        condition,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.black54,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    message,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.black54,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 46,
-                    child: FilledButton(
-                      onPressed:
-                          (_forecastData == null || _currentWeatherData == null)
-                          ? null
-                          : () => Navigator.pushNamed(
-                              context,
-                              Routes.alertDetail,
-                              arguments: AlertDetailData.fromWeatherData(
-                                forecastData: _forecastData!,
-                                currentWeatherData: _currentWeatherData!,
-                              ),
-                            ),
-                      child: const Text('View Details'),
-                    ),
-                  ),
-                ],
+              ],
+            ),
+          ),
+          Center(
+            child: Text(
+              '${normalizeRiskLabel(risk)} · NEXT 3H',
+              style: AppTheme.microLabel(
+                fontSize: 10,
+                color: AppTheme.slate,
               ),
             ),
           ),
-          const SizedBox(height: 14),
-          const SectionTitle('Weather metrics'),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _MetricCard(
-                  icon: Icons.water_drop_rounded,
-                  title: 'Rain',
-                  value: rainfall,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _MetricCard(
-                  icon: Icons.opacity_rounded,
-                  title: 'Humidity',
-                  value: humidity,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _MetricCard(
-                  icon: Icons.air_rounded,
-                  title: 'Wind',
-                  value: wind,
-                ),
-              ),
-            ],
+          const SizedBox(height: 20),
+
+          // ── Instrument rows ──
+          _InstrumentRow(
+            label: 'RAINFALL · 1H',
+            value: rainfall,
           ),
-          const SizedBox(height: 14),
-          const SectionTitle('Upcoming conditions'),
+          _InstrumentRow(
+            label: 'SOIL SATURATION',
+            value: humidity,
+          ),
+          _InstrumentRow(
+            label: 'RIVER LEVEL',
+            value: wind,
+          ),
+
+          const SizedBox(height: 20),
+          const Divider(height: 0.5, thickness: 0.5, color: AppTheme.divider),
+          const SizedBox(height: 16),
+
+          // ── Hourly trend strip ──
+          Text(
+            'NEXT 8H',
+            style: AppTheme.microLabel(
+              fontSize: 10,
+              color: AppTheme.slate,
+            ),
+          ),
           const SizedBox(height: 10),
           SizedBox(
-            height: 170,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: 4,
-              itemBuilder: (context, index) {
-                if (index == 0) {
-                  return _ForecastChip(
-                    time: currentTimeLabel,
-                    icon: getWeatherIcon(condition),
-                    temp: temperature == '--' ? '--' : '$temperature\u00B0C',
-                    rain: rainfall == '--' ? '--' : 'Rain $rainfall',
-                    risk:
-                        risk == 'Loading...' ? '--' : normalizeRiskLabel(risk),
-                  );
-                }
+            height: 60,
+            child: _HourlyTrendStrip(
+              forecastList: forecastList,
+              forecastTimezone: forecastTimezone,
+            ),
+          ),
 
-                final forecastIndex = index - 1;
-                if (forecastList.length <= forecastIndex) {
-                  return const _ForecastChip(
-                    time: '--',
-                    icon: Icons.wb_cloudy_rounded,
-                    temp: '--',
-                    rain: '--',
-                    risk: '--',
-                  );
-                }
+          const SizedBox(height: 20),
 
-                final item = forecastList[forecastIndex] as Map<String, dynamic>;
-                final temp =
-                    (item['main']['temp'] as num).toDouble().toStringAsFixed(0);
-                final rain =
-                    '${((((item['pop'] ?? 0) as num).toDouble()) * 100).toStringAsFixed(0)}%';
-                final itemRisk = getRiskFromItem(item);
-                final weather =
-                    ((item['weather'] as List).first as Map<String, dynamic>)['main']
-                        as String;
+          // ── VIEW 6-HOUR OUTLOOK button ──
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: OutlinedButton(
+              onPressed:
+                  (_forecastData == null || _currentWeatherData == null)
+                      ? null
+                      : () => Navigator.pushNamed(
+                            context,
+                            Routes.alertDetail,
+                            arguments: AlertDetailData.fromWeatherData(
+                              forecastData: _forecastData!,
+                              currentWeatherData: _currentWeatherData!,
+                            ),
+                          ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.ink,
+                side: const BorderSide(color: AppTheme.ink, width: 0.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              child: Text(
+                'VIEW 6-HOUR OUTLOOK',
+                style: AppTheme.microLabel(
+                  fontSize: 12,
+                  color: AppTheme.ink,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 40),
 
-                return _ForecastChip(
-                  time: formatForecastTime(
-                    (item['dt'] as num).toInt(),
-                    forecastTimezone,
+          // ── Field unit ID ──
+          Align(
+            alignment: Alignment.bottomRight,
+            child: Text(
+              'CB·7 FIELD UNIT',
+              style: AppTheme.mono(
+                fontSize: 9,
+                color: AppTheme.slate,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Risk dial painter ─────────────────────────────────────────────
+class _RiskDialPainter extends CustomPainter {
+  final double percent;
+  final Color severityColor;
+
+  _RiskDialPainter({required this.percent, required this.severityColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height * 0.82);
+    final radius = size.width * 0.38;
+    const startAngle = math.pi * 1.15;
+    const sweepAngle = math.pi * 0.7;
+    const strokeWidth = 10.0;
+
+    // Background arc
+    final bgPaint = Paint()
+      ..color = AppTheme.divider
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.butt;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      startAngle,
+      sweepAngle,
+      false,
+      bgPaint,
+    );
+
+    // Foreground arc (severity colored)
+    if (percent > 0) {
+      final fgPaint = Paint()
+        ..color = severityColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.butt;
+
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweepAngle * (percent / 100).clamp(0.0, 1.0),
+        false,
+        fgPaint,
+      );
+    }
+
+    // Tick marks at 0%, 25%, 50%, 75%, 100%
+    final tickPaint = Paint()
+      ..color = AppTheme.slate
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    for (final frac in [0.0, 0.25, 0.5, 0.75, 1.0]) {
+      final angle = startAngle + sweepAngle * frac;
+      final outerPt = Offset(
+        center.dx + (radius + 8) * math.cos(angle),
+        center.dy + (radius + 8) * math.sin(angle),
+      );
+      final innerPt = Offset(
+        center.dx + (radius - 8) * math.cos(angle),
+        center.dy + (radius - 8) * math.sin(angle),
+      );
+      canvas.drawLine(innerPt, outerPt, tickPaint);
+    }
+
+    // Needle
+    final needleAngle =
+        startAngle + sweepAngle * (percent / 100).clamp(0.0, 1.0);
+    final needlePaint = Paint()
+      ..color = AppTheme.ink
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round;
+
+    final needleTip = Offset(
+      center.dx + (radius - 14) * math.cos(needleAngle),
+      center.dy + (radius - 14) * math.sin(needleAngle),
+    );
+    canvas.drawLine(center, needleTip, needlePaint);
+
+    // Hub dot
+    final hubPaint = Paint()
+      ..color = AppTheme.ink
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, 6, hubPaint);
+  }
+
+  @override
+  bool shouldRepaint(_RiskDialPainter oldDelegate) {
+    return oldDelegate.percent != percent ||
+        oldDelegate.severityColor != severityColor;
+  }
+}
+
+// ── Instrument row ────────────────────────────────────────────────
+class _InstrumentRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _InstrumentRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 9),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: AppTheme.divider, width: 0.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: AppTheme.microLabel(
+                fontSize: 10,
+                color: AppTheme.slate,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: AppTheme.mono(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.ink,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Hourly trend strip ────────────────────────────────────────────
+class _HourlyTrendStrip extends StatelessWidget {
+  final List<dynamic> forecastList;
+  final int forecastTimezone;
+
+  const _HourlyTrendStrip({
+    required this.forecastList,
+    required this.forecastTimezone,
+  });
+
+  String _getRiskFromItem(Map<String, dynamic> item) {
+    final humidity = (item['main']['humidity'] as num).toDouble();
+    final pressure = (item['main']['pressure'] as num).toDouble();
+    final wind = (item['wind']['speed'] as num).toDouble();
+    final clouds = (item['clouds']['all'] as num).toDouble();
+    final rain = ((item['pop'] ?? 0) as num).toDouble() * 100;
+
+    int score = 0;
+    if (humidity > 75) score += 2;
+    if (clouds > 70) score += 2;
+    if (pressure < 1005) score += 3;
+    if (wind > 8) score += 2;
+    if (rain > 50) score += 3;
+
+    if (score >= 8) return 'HIGH';
+    if (score >= 5) return 'MODERATE';
+    return 'LOW';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final barCount = forecastList.length.clamp(0, 8);
+    if (barCount == 0) {
+      return const SizedBox.shrink();
+    }
+
+    // Find max pop for scaling
+    double maxPop = 0;
+    for (var i = 0; i < barCount; i++) {
+      final item = forecastList[i] as Map<String, dynamic>;
+      final pop = ((item['pop'] ?? 0) as num).toDouble();
+      if (pop > maxPop) maxPop = pop;
+    }
+    if (maxPop == 0) maxPop = 1;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        for (var i = 0; i < barCount; i++) ...[
+          Expanded(
+            child: Builder(
+              builder: (context) {
+                final item = forecastList[i] as Map<String, dynamic>;
+                final pop = ((item['pop'] ?? 0) as num).toDouble();
+                final riskLabel = _getRiskFromItem(item);
+                final barHeight = 8 + (pop / maxPop) * 42;
+                final isHighest = (pop == maxPop && maxPop > 0);
+                final barColor = isHighest
+                    ? AppTheme.severityColor(riskLabel)
+                    : AppTheme.divider;
+
+                return Container(
+                  height: barHeight,
+                  decoration: BoxDecoration(
+                    color: barColor,
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  icon: getWeatherIcon(weather),
-                  temp: '$temp\u00B0C',
-                  rain: 'Rain $rain',
-                  risk: itemRisk,
                 );
               },
             ),
           ),
+          if (i < barCount - 1) const SizedBox(width: 6),
         ],
-      ),
-    );
-  }
-}
-
-class _ForecastChip extends StatelessWidget {
-  final String time;
-  final IconData icon;
-  final String temp;
-  final String rain;
-  final String risk;
-
-  const _ForecastChip({
-    required this.time,
-    required this.icon,
-    required this.temp,
-    required this.rain,
-    required this.risk,
-  });
-
-  Color _riskColor() {
-    if (risk.contains('HIGH')) return const Color(0xFFEF4444);
-    if (risk.contains('MODERATE')) return const Color(0xFFF59E0B);
-    if (risk.contains('LOW')) return const Color(0xFF22C55E);
-    return const Color(0xFF94A3B8);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final riskColor = _riskColor();
-
-    return Container(
-      width: 110,
-      margin: const EdgeInsets.only(right: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: riskColor.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: riskColor.withOpacity(0.24)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            time,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(
-              color: const Color(0xFF475569),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Icon(icon, color: riskColor, size: 26),
-          const SizedBox(height: 10),
-          Text(
-            temp,
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            rain,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: const Color(0xFF475569),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-            decoration: BoxDecoration(
-              color: riskColor.withOpacity(0.18),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              risk,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: riskColor,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String value;
-
-  const _MetricCard({
-    required this.icon,
-    required this.title,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Icon(icon, color: cs.primary),
-            const SizedBox(height: 6),
-            Text(
-              title,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: Colors.black54),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 }

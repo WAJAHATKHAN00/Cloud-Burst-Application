@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:cloud_burst/app/theme/app_theme.dart';
+
 class SectionTitle extends StatelessWidget {
   final String title;
   final Widget? trailing;
@@ -11,10 +13,8 @@ class SectionTitle extends StatelessWidget {
       children: [
         Expanded(
           child: Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+            title.toUpperCase(),
+            style: AppTheme.microLabel(fontSize: 10, color: AppTheme.slate),
           ),
         ),
         if (trailing != null) trailing!,

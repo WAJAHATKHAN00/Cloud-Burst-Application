@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:cloud_burst/app/routing/routes.dart';
+import 'package:cloud_burst/app/theme/app_theme.dart';
 
 class ProfileTab extends StatelessWidget {
   const ProfileTab({super.key});
@@ -8,109 +9,103 @@ class ProfileTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: ListView(
         children: [
-          // Text('Profile', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
-          // const SizedBox(height: 12),
-          // // Card(
-          //   child: Padding(
-          //     padding: const EdgeInsets.all(14),
-               // child: Row(
-              //   children: [
-              //     Stack(
-              //       children: [
-              //         CircleAvatar(
-              //           radius: 30,
-              //           backgroundColor: cs.primary.withOpacity(0.15),
-              //           child: Icon(Icons.person_rounded, color: cs.primary, size: 34),
-              //         ),
-              //         Positioned(
-              //           right: -2,
-              //           bottom: -2,
-              //           child: InkWell(
-              //             onTap: () {
-              //               ScaffoldMessenger.of(context).showSnackBar(
-              //                 const SnackBar(content: Text('Change profile photo (demo).')),
-              //               );
-              //             },
-              //             borderRadius: BorderRadius.circular(999),
-              //             child: Container(
-              //               padding: const EdgeInsets.all(6),
-              //               decoration: BoxDecoration(
-              //                 color: cs.primary,
-              //                 shape: BoxShape.circle,
-              //                 border: Border.all(color: Colors.white, width: 2),
-              //               ),
-              //               child: const Icon(Icons.edit_rounded, color: Colors.white, size: 16),
-              //             ),
-              //           ),
-              //         ),
-              //       ],
-              //     ),
-              //     const SizedBox(width: 12),
-              //     Expanded(
-              //       child: Column(
-              //         crossAxisAlignment: CrossAxisAlignment.start,
-              //         children: [
-              //           Text('Ali Raza', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
-              //           const SizedBox(height: 4),
-              //           Text('ali.raza@email.com', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54)),
-              //           const SizedBox(height: 4),
-              //           Text('Current city: ${state.selectedCity}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54)),
-              //         ],
-              //       ),
-              //     ),
-              //   ],
-              // ),
-          //   ),
-          // ),
-          const SizedBox(height: 14),
-          Text('Menu', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
-          const SizedBox(height: 10),
-          _MenuTile(
-            icon: Icons.menu_book_rounded,
+          const SizedBox(height: 16),
+          // Radar-ring icon (matching splash)
+          SizedBox(
+            width: 48,
+            height: 48,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppTheme.divider, width: 0.5),
+                  ),
+                ),
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppTheme.divider, width: 0.5),
+                  ),
+                ),
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppTheme.ink,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'FIELD UNIT',
+            style: AppTheme.microLabel(
+              fontSize: 10,
+              color: AppTheme.slate,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Anonymous device profile',
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: AppTheme.slate),
+          ),
+          const SizedBox(height: 24),
+
+          // ── Menu ──
+          Text(
+            'MENU',
+            style: AppTheme.microLabel(
+              fontSize: 10,
+              color: AppTheme.slate,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _MenuRow(
+            icon: Icons.menu_book_outlined,
             title: 'My Reports',
             subtitle: 'View all incidents you submitted',
             onTap: () => Navigator.pushNamed(context, Routes.myReports),
           ),
-          _MenuTile(
+          _MenuRow(
             icon: Icons.info_outline_rounded,
             title: 'About App',
             subtitle: 'App purpose, version, and policies',
             onTap: () => Navigator.pushNamed(context, Routes.about),
           ),
-          _MenuTile(
-            icon: Icons.support_agent_rounded,
+          _MenuRow(
+            icon: Icons.support_agent_outlined,
             title: 'Help & Support',
             subtitle: 'FAQs and contact support',
             onTap: () => Navigator.pushNamed(context, Routes.help),
           ),
           const SizedBox(height: 14),
-          // SizedBox(
-          //   height: 52,
-          //   child: OutlinedButton.icon(
-          //     onPressed: () {
-          //       AppStateScope.of(context).logout();
-          //       Navigator.pushNamedAndRemoveUntil(context, Routes.login, (r) => false);
-          //     },
-          //     icon: const Icon(Icons.logout_rounded),
-          //     label: const Text('Sign Out'),
-          //   ),
-          // ),
         ],
       ),
     );
   }
 }
 
-class _MenuTile extends StatelessWidget {
+class _MenuRow extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
 
-  const _MenuTile({
+  const _MenuRow({
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -119,23 +114,44 @@ class _MenuTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        onTap: onTap,
-        leading: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: cs.primary.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(14),
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: const BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: AppTheme.divider, width: 0.5),
           ),
-          child: Icon(icon, color: cs.primary),
         ),
-        title: Text(title, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900)),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right_rounded),
+        child: Row(
+          children: [
+            Icon(icon, size: 22, color: AppTheme.slate),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: AppTheme.slate),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 18, color: AppTheme.slate),
+          ],
+        ),
       ),
     );
   }

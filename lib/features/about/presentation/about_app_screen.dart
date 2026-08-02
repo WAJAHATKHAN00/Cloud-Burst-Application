@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:cloud_burst/app/theme/app_theme.dart';
 import 'package:cloud_burst/shared/widgets/cloud_background.dart';
 
 class AboutAppScreen extends StatelessWidget {
@@ -7,57 +8,49 @@ class AboutAppScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     return CloudBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: AppBar(title: const Text('About App')),
+        appBar: AppBar(
+          title: Text(
+            'ABOUT APP',
+            style: AppTheme.microLabel(
+              fontSize: 13,
+              color: AppTheme.slate,
+            ),
+          ),
+        ),
         body: SafeArea(
           child: ListView(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.symmetric(horizontal: 24),
             children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: cs.primary.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Icon(Icons.cloud_rounded, color: cs.primary),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('CloudBurst Alert', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
-                            const SizedBox(height: 4),
-                            Text('Version 1.0.0 (Demo UI)', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+              const SizedBox(height: 8),
+              Text(
+                'CLOUDBURST PREDICTOR',
+                style: AppTheme.microLabel(
+                  fontSize: 17,
+                  color: AppTheme.ink,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 12),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Text(
-                    'CloudBurst Alert provides cloudburst risk information, real-time warnings, and safety guidance. '
-                    'This is a frontend UI demo that will be connected to real data sources in backend.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black87),
-                  ),
+              const SizedBox(height: 4),
+              Text(
+                'V1.0.0',
+                style: AppTheme.mono(
+                  fontSize: 10,
+                  color: AppTheme.slate,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
+              Text(
+                'CloudBurst Alert provides cloudburst risk information, real-time warnings, and safety guidance. '
+                'This is a frontend UI demo that will be connected to real data sources in backend.',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: AppTheme.slate, height: 1.5),
+              ),
+              const SizedBox(height: 20),
               const _Expandable(
                 title: 'Terms of Service',
                 body:
@@ -93,30 +86,49 @@ class _ExpandableState extends State<_Expandable> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: () => setState(() => _open = !_open),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(widget.title, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900)),
-                  ),
-                  Icon(_open ? Icons.expand_less_rounded : Icons.expand_more_rounded),
-                ],
-              ),
-              if (_open) ...[
-                const SizedBox(height: 10),
-                Text(widget.body, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54)),
-              ],
-            ],
+    return InkWell(
+      onTap: () => setState(() => _open = !_open),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: const BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: AppTheme.divider, width: 0.5),
           ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w500),
+                  ),
+                ),
+                Icon(
+                  _open
+                      ? Icons.keyboard_arrow_up
+                      : Icons.keyboard_arrow_down,
+                  size: 20,
+                  color: AppTheme.slate,
+                ),
+              ],
+            ),
+            if (_open) ...[
+              const SizedBox(height: 8),
+              Text(
+                widget.body,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: AppTheme.slate, height: 1.5),
+              ),
+            ],
+          ],
         ),
       ),
     );

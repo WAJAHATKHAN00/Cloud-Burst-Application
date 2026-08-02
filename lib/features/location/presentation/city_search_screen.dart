@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:cloud_burst/app/state/app_state.dart';
+import 'package:cloud_burst/app/theme/app_theme.dart';
 import 'package:cloud_burst/shared/widgets/cloud_background.dart';
 
 class CitySearchScreen extends StatefulWidget {
@@ -32,109 +33,118 @@ class _CitySearchScreenState extends State<CitySearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final filtered = cityCoordinates.keys
         .where((c) => c.toLowerCase().contains(_query.toLowerCase()))
         .toList();
+
     return CloudBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: AppBar(title: const Text('Search City')),
+        appBar: AppBar(
+          title: Text(
+            'CITY SEARCH',
+            style: AppTheme.microLabel(
+              fontSize: 13,
+              color: AppTheme.slate,
+            ),
+          ),
+        ),
         body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              children: [
-                TextField(
+          child: Column(
+            children: [
+              // Search field
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: TextField(
                   controller: _ctrl,
                   onChanged: (v) => setState(() => _query = v),
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.search_rounded),
-                    hintText: 'Search city...',
+                  decoration: InputDecoration(
+                    prefixIcon: Icon(
+                      Icons.search_rounded,
+                      color: AppTheme.slate,
+                      size: 20,
+                    ),
+                    hintText: 'Search city…',
                   ),
                 ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: Stack(
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.9),
-                          borderRadius: BorderRadius.circular(22),
-                          border: Border.all(color: cs.primary.withOpacity(0.10)),
-                        ),
-                        child: Center(
-                          child: Text(
-                            'World map (UI demo)\nSearch and select a city',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
-                            textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              // Results
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  itemCount: filtered.length,
+                  itemBuilder: (context, i) {
+                    final city = filtered[i];
+                    final parts = city.split(',');
+                    final name = parts.first.trim();
+                    final region = parts.length > 1 ? parts[1].trim() : '';
+
+                    return InkWell(
+                      onTap: () {
+                        final coords = cityCoordinates[city]!;
+                        AppStateScope.of(context).setSelectedCity(city);
+                        AppStateScope.of(context)
+                            .setLocation(coords['lat']!, coords['lon']!);
+                        Navigator.pop(context);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: AppTheme.divider,
+                              width: 0.5,
+                            ),
                           ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.location_on_outlined,
+                              size: 18,
+                              color: AppTheme.slate,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    name,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                  ),
+                                  if (region.isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      region,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(color: AppTheme.slate),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.chevron_right,
+                              size: 18,
+                              color: AppTheme.slate,
+                            ),
+                          ],
                         ),
                       ),
-                      Align(
-                        alignment: Alignment.bottomCenter,
-                        child: Container(
-                          margin: const EdgeInsets.all(12),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.95),
-                            borderRadius: BorderRadius.circular(22),
-                            border: Border.all(color: cs.primary.withOpacity(0.10)),
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 44,
-                                height: 4,
-                                decoration: BoxDecoration(
-                                  color: Colors.black12,
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              SizedBox(
-                                height: 210,
-                                child: ListView.builder(
-                                  itemCount: filtered.length,
-                                  itemBuilder: (context, i) {
-                                    final city = filtered[i];
-                                    return ListTile(
-                                      leading: Icon(Icons.place_rounded, color: cs.primary),
-                                      title: Text(city),
-                                      trailing: const Icon(Icons.chevron_right_rounded),
-                                      onTap: () {
-                                        final coords = cityCoordinates[city]!;
-
-                                        AppStateScope.of(context).setSelectedCity(city);
-                                        AppStateScope.of(context).setLocation(coords['lat']!, coords['lon']!);
-
-                                        Navigator.pop(context);
-                                      },
-                                    );
-                                  },
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                width: double.infinity,
-                                height: 48,
-                                child: FilledButton.icon(
-                                  onPressed: () => Navigator.pop(context),
-                                  icon: const Icon(Icons.check_rounded),
-                                  label: const Text('Done'),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

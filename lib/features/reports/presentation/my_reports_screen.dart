@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:cloud_burst/app/theme/app_theme.dart';
 import 'package:cloud_burst/core/services/device_service.dart';
 import 'package:cloud_burst/core/services/supabase_service.dart';
 import 'package:cloud_burst/shared/widgets/cloud_background.dart';
@@ -19,7 +20,15 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
     return CloudBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: AppBar(title: const Text('My Reports')),
+        appBar: AppBar(
+          title: Text(
+            'MY REPORTS',
+            style: AppTheme.microLabel(
+              fontSize: 13,
+              color: AppTheme.slate,
+            ),
+          ),
+        ),
         body: SafeArea(
           child: FutureBuilder<String>(
             future: _deviceIdFuture,
@@ -66,12 +75,12 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
                   }
 
                   return ListView.builder(
-                    padding: const EdgeInsets.all(18),
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
                     itemCount: reports.length,
                     itemBuilder: (context, index) {
                       final report = _UserReport.fromMap(reports[index]);
 
-                      return _ReportCard(
+                      return _ReportRow(
                         type: report.type,
                         location: report.location,
                         time: report.timeLabel,
@@ -137,13 +146,20 @@ class _UserReport {
   }
 }
 
-class _ReportCard extends StatelessWidget {
+Color _statusColor(String status) {
+  final s = status.toLowerCase();
+  if (s == 'approved') return AppTheme.safeTeal;
+  if (s == 'rejected') return AppTheme.hazardRed;
+  return AppTheme.slate;
+}
+
+class _ReportRow extends StatelessWidget {
   final String type;
   final String location;
   final String time;
   final String status;
 
-  const _ReportCard({
+  const _ReportRow({
     required this.type,
     required this.location,
     required this.time,
@@ -152,45 +168,59 @@ class _ReportCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.04),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Icon(Icons.menu_book_rounded),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '$type - $location',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$time - $status',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.black54,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right_rounded),
-          ],
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: AppTheme.divider, width: 0.5),
         ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$type · $location',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w500),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  time,
+                  style: AppTheme.mono(
+                    fontSize: 10,
+                    color: AppTheme.slate,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: _statusColor(status),
+                width: 0.5,
+              ),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              status.toUpperCase(),
+              style: AppTheme.microLabel(
+                fontSize: 9,
+                color: _statusColor(status),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -215,22 +245,24 @@ class _MessageState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 42, color: Colors.black45),
+            Icon(icon, size: 42, color: AppTheme.slate),
             const SizedBox(height: 12),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w900,
-              ),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 6),
             Text(
               detail,
               textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: Colors.black54),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: AppTheme.slate),
             ),
           ],
         ),

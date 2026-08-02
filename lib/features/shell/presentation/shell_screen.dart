@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:cloud_burst/app/navigation/nav.dart';
+import 'package:cloud_burst/app/theme/app_theme.dart';
 import 'package:cloud_burst/core/services/device_service.dart';
 import 'package:cloud_burst/core/services/supabase_service.dart';
 import 'package:cloud_burst/features/alerts/presentation/alerts_tab.dart';
@@ -11,7 +12,6 @@ import 'package:cloud_burst/features/home/presentation/home_tab.dart';
 import 'package:cloud_burst/features/map/presentation/map_tab.dart';
 import 'package:cloud_burst/features/profile/presentation/profile_tab.dart';
 import 'package:cloud_burst/features/reports/presentation/report_tab.dart';
-import 'package:cloud_burst/shared/widgets/cloud_background.dart';
 
 class ShellScreen extends StatefulWidget {
   const ShellScreen({super.key});
@@ -168,26 +168,31 @@ class _ShellScreenState extends State<ShellScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return CloudBackground(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: SafeArea(
-          child: IndexedStack(index: _index, children: _tabs),
-        ),
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: _index,
-          onDestinationSelected: _selectTab,
-          destinations: [
-            for (var i = 0; i < navItems.length; i++)
-              NavigationDestination(
-                icon: _NavigationBadge(
-                  count: _badgeCountForIndex(i),
-                  child: Icon(navItems[i].icon),
+    return Scaffold(
+      backgroundColor: AppTheme.paper,
+      body: SafeArea(
+        child: IndexedStack(index: _index, children: _tabs),
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 0.5px top border
+          const Divider(height: 0.5, thickness: 0.5, color: AppTheme.divider),
+          NavigationBar(
+            selectedIndex: _index,
+            onDestinationSelected: _selectTab,
+            destinations: [
+              for (var i = 0; i < navItems.length; i++)
+                NavigationDestination(
+                  icon: _NavigationBadge(
+                    count: _badgeCountForIndex(i),
+                    child: Icon(navItems[i].icon),
+                  ),
+                  label: navItems[i].label,
                 ),
-                label: navItems[i].label,
-              ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -222,14 +227,14 @@ class _NavigationBadge extends StatelessWidget {
             constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
             padding: const EdgeInsets.symmetric(horizontal: 4),
             decoration: BoxDecoration(
-              color: Colors.red,
+              color: AppTheme.hazardRed,
               borderRadius: BorderRadius.circular(999),
             ),
             alignment: Alignment.center,
             child: Text(
               label,
               style: const TextStyle(
-                color: Colors.white,
+                color: AppTheme.paper,
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
                 height: 1,

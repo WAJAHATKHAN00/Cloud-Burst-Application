@@ -26,7 +26,9 @@ class WeatherService {
     final url =
         "https://api.openweathermap.org/geo/1.0/reverse?lat=$lat&lon=$lon&limit=1&appid=$apiKey";
 
-    final response = await http.get(Uri.parse(url));
+    final response = await http
+        .get(Uri.parse(url))
+        .timeout(const Duration(seconds: 10));
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:cloud_burst/app/routing/routes.dart';
+import 'package:cloud_burst/app/theme/app_theme.dart';
 import 'package:cloud_burst/core/services/supabase_service.dart';
 import 'package:cloud_burst/features/alerts/presentation/alert_detail_screen.dart';
 import 'package:cloud_burst/shared/widgets/section_title.dart';
@@ -11,25 +12,29 @@ class AlertsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const SizedBox(height: 16),
           Text(
-            'Alerts',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+            'ACTIVE ALERTS',
+            style: AppTheme.microLabel(
+              fontSize: 17,
+              color: AppTheme.ink,
+              fontWeight: FontWeight.w500,
+            ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             'Warnings generated for nearby risk zones.',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(color: AppTheme.slate),
           ),
-          const SizedBox(height: 12),
-          const SectionTitle('Active warnings'),
+          const SizedBox(height: 16),
+          const SectionTitle('ACTIVE WARNINGS'),
           const SizedBox(height: 10),
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
@@ -65,12 +70,11 @@ class AlertsTab extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final alert = alerts[index];
 
-                    return _AlertCard(
+                    return _AlertRow(
                       severityColor: alert.severityColor,
                       title: alert.title,
                       subtitle: alert.subtitle,
-                      icon: alert.icon,
-                      unread: index < 2,
+                      timeLabel: alert.timeLabel,
                       onTap: () => Navigator.pushNamed(
                         context,
                         Routes.alertDetail,
@@ -132,7 +136,7 @@ class _ApprovedAlert {
 
   String get subtitle {
     final locationName = location.split(',').first.trim();
-    return '$locationName - $description - $timeLabel';
+    return '$locationName · $description';
   }
 
   String get timeLabel {
@@ -150,25 +154,7 @@ class _ApprovedAlert {
     return '${date.day}/${date.month}/${date.year}';
   }
 
-  Color get severityColor {
-    if (risk.contains('High')) return const Color(0xFFEF4444);
-    if (risk.contains('Moderate')) return const Color(0xFFF59E0B);
-    return const Color(0xFF22C55E);
-  }
-
-  IconData get icon {
-    final type = reportType.toLowerCase();
-    if (type.contains('cloud burst') || type.contains('cloudburst')) {
-      return Icons.thunderstorm_rounded;
-    }
-    if (type.contains('flood') || type.contains('river')) {
-      return Icons.water_drop_rounded;
-    }
-    if (type.contains('landslide')) return Icons.landscape_rounded;
-    if (type.contains('rock')) return Icons.terrain_rounded;
-    if (type.contains('snow')) return Icons.ac_unit_rounded;
-    return Icons.warning_amber_rounded;
-  }
+  Color get severityColor => AppTheme.severityColor(risk);
 
   AlertDetailData toDetailData() {
     return AlertDetailData(
@@ -226,82 +212,80 @@ class _ApprovedAlert {
   }
 }
 
-class _AlertCard extends StatelessWidget {
+class _AlertRow extends StatelessWidget {
   final Color severityColor;
   final String title;
   final String subtitle;
-  final IconData icon;
-  final bool unread;
+  final String timeLabel;
   final VoidCallback onTap;
 
-  const _AlertCard({
+  const _AlertRow({
     required this.severityColor,
     required this.title,
     required this.subtitle,
-    required this.icon,
-    required this.unread,
+    required this.timeLabel,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: severityColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: severityColor),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w900),
-                          ),
-                        ),
-                        if (unread)
-                          Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: severityColor,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: Colors.black54),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(Icons.chevron_right_rounded),
-            ],
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: const BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: AppTheme.divider, width: 0.5),
           ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Severity bar
+            Container(
+              width: 3,
+              height: 40,
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                color: severityColor,
+                borderRadius: BorderRadius.circular(1.5),
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: AppTheme.slate),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              timeLabel,
+              style: AppTheme.mono(
+                fontSize: 10,
+                color: AppTheme.slate,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right, size: 18, color: AppTheme.slate),
+          ],
         ),
       ),
     );
@@ -327,22 +311,24 @@ class _MessageState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 42, color: Colors.black45),
+            Icon(icon, size: 42, color: AppTheme.slate),
             const SizedBox(height: 12),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 6),
             Text(
               detail,
               textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: Colors.black54),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: AppTheme.slate),
             ),
           ],
         ),

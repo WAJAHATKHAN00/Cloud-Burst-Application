@@ -33,11 +33,6 @@ class _CloudBurstAppState extends State<CloudBurstApp> {
         initialRoute: Routes.splash,
         routes: {
           Routes.splash: (_) => const SplashScreen(),
-          /* For the time being Login and sign up screen are not connected.
-          Routes.login: (_) => const LoginScreen(),
-          Routes.signup: (_) => const SignupScreen(),
-          Routes.forgotPassword: (_) => const ForgotPasswordScreen(),
-          */
           Routes.locationPermission: (_) => const LocationPermissionScreen(),
           Routes.shell: (_) => const ShellScreen(),
           Routes.citySearch: (_) => const CitySearchScreen(),
