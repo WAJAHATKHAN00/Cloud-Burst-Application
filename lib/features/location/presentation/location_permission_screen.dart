@@ -30,6 +30,7 @@ class LocationPermissionScreen extends StatelessWidget {
       final cityName = results[1];
       if (cityName.isNotEmpty) {
         state.setSelectedCity(cityName);
+        state.setDeviceLocation(lat, lng, cityName);
       }
 
       await SupabaseService.saveDeviceLocation(
@@ -92,9 +93,9 @@ class LocationPermissionScreen extends StatelessWidget {
                       final lng = position.longitude;
 
                       state.setLocation(lat, lng);
-                      state.setSelectedCity(
-                        '${lat.toStringAsFixed(2)}, ${lng.toStringAsFixed(2)}',
-                      );
+                      final defaultCity = '${lat.toStringAsFixed(2)}, ${lng.toStringAsFixed(2)}';
+                      state.setSelectedCity(defaultCity);
+                      state.setDeviceLocation(lat, lng, defaultCity);
                       state.setLocationGranted(true);
 
                       if (!context.mounted) return;

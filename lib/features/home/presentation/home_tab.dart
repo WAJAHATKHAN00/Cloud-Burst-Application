@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_burst/app/routing/routes.dart';
 import 'package:cloud_burst/app/state/app_state.dart';
 import 'package:cloud_burst/app/theme/app_theme.dart';
+import 'package:cloud_burst/core/services/location_service.dart';
 import 'package:cloud_burst/core/services/prediction_service.dart';
 import 'package:cloud_burst/core/services/weather_service.dart';
 import 'package:cloud_burst/features/alerts/presentation/alert_detail_screen.dart';
@@ -28,11 +29,49 @@ class _HomeTabState extends State<HomeTab> {
   Map<String, dynamic>? _forecastData;
   Map<String, dynamic>? _currentWeatherData;
   List<dynamic> forecastList = [];
+  bool _isLocating = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     loadData();
+  }
+
+  Future<void> _useDeviceLocation() async {
+    if (_isLocating) return;
+    setState(() => _isLocating = true);
+    try {
+      final position = await LocationService.getLocation();
+      final lat = position.latitude;
+      final lng = position.longitude;
+      if (!mounted) return;
+      final state = AppStateScope.of(context);
+      state.setLocation(lat, lng);
+
+      final cityName = await WeatherService.getCityName(lat, lng);
+      if (!mounted) return;
+
+      final resolvedCity = cityName.isNotEmpty
+          ? cityName
+          : '${lat.toStringAsFixed(2)}, ${lng.toStringAsFixed(2)}';
+      state.setSelectedCity(resolvedCity);
+      state.setDeviceLocation(lat, lng, resolvedCity);
+
+      await loadData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not fetch location: $e'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLocating = false);
+      }
+    }
   }
 
   Future<void> loadData() async {
@@ -180,20 +219,52 @@ class _HomeTabState extends State<HomeTab> {
           Row(
             children: [
               Expanded(
-                child: GestureDetector(
-                  onTap: () =>
-                      Navigator.pushNamed(context, Routes.citySearch),
-                  child: Text(
-                    state.selectedCity.toUpperCase(),
-                    style: AppTheme.microLabel(
-                      fontSize: 12,
-                      color: AppTheme.ink,
-                      fontWeight: FontWeight.w500,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: GestureDetector(
+                        onTap: () =>
+                            Navigator.pushNamed(context, Routes.citySearch),
+                        child: Text(
+                          state.selectedCity.toUpperCase(),
+                          style: AppTheme.microLabel(
+                            fontSize: 12,
+                            color: AppTheme.ink,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                    const SizedBox(width: 6),
+                    _isLocating
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              color: AppTheme.ink,
+                            ),
+                          )
+                        : GestureDetector(
+                            onTap: _useDeviceLocation,
+                            child: Tooltip(
+                              message: 'Use Current Location',
+                              child: Padding(
+                                padding: const EdgeInsets.all(2.0),
+                                child: Icon(
+                                  Icons.my_location_rounded,
+                                  size: 16,
+                                  color: AppTheme.ink,
+                                ),
+                              ),
+                            ),
+                          ),
+                  ],
                 ),
               ),
+              const SizedBox(width: 8),
               Text(
                 'SYNCED ${currentTimeLabel.toUpperCase()}',
                 style: AppTheme.mono(
@@ -268,15 +339,15 @@ class _HomeTabState extends State<HomeTab> {
 
           // ── Instrument rows ──
           _InstrumentRow(
-            label: 'RAINFALL · 1H',
+            label: 'RAIN',
             value: rainfall,
           ),
           _InstrumentRow(
-            label: 'SOIL SATURATION',
+            label: 'HUMIDITY',
             value: humidity,
           ),
           _InstrumentRow(
-            label: 'RIVER LEVEL',
+            label: 'WIND',
             value: wind,
           ),
 
@@ -317,6 +388,9 @@ class _HomeTabState extends State<HomeTab> {
                             arguments: AlertDetailData.fromWeatherData(
                               forecastData: _forecastData!,
                               currentWeatherData: _currentWeatherData!,
+                              locationName: AppStateScope.of(context).selectedCity,
+                              latitude: AppStateScope.of(context).latitude,
+                              longitude: AppStateScope.of(context).longitude,
                             ),
                           ),
               style: OutlinedButton.styleFrom(

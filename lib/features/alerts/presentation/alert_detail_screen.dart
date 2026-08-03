@@ -46,9 +46,23 @@ class AlertDetailData {
   factory AlertDetailData.fromWeatherData({
     required Map<String, dynamic> forecastData,
     required Map<String, dynamic> currentWeatherData,
+    String? locationName,
+    double? latitude,
+    double? longitude,
+    String? reportType,
+    String? customMessage,
+    String? customRisk,
+    int? customConfidence,
   }) {
-    final prediction = PredictionService.predict(forecastData);
-    final firstForecast = forecastData["list"][0] as Map<String, dynamic>;
+    final hasForecastList = (forecastData["list"] as List?)?.isNotEmpty == true;
+    final prediction = hasForecastList
+        ? PredictionService.predict(forecastData)
+        : {"risk": "LOW RISK", "confidence": 0};
+
+    final forecastList = forecastData["list"] as List<dynamic>? ?? const [];
+    final firstForecast = forecastList.isNotEmpty
+        ? forecastList.first as Map<String, dynamic>
+        : const <String, dynamic>{};
     final currentMain =
         (currentWeatherData["main"] as Map?)?.cast<String, dynamic>() ??
         const <String, dynamic>{};
@@ -64,13 +78,33 @@ class AlertDetailData {
         ? weatherList.first as Map<String, dynamic>
         : const <String, dynamic>{};
 
+    final popNum = ((firstForecast["pop"] ?? 0) as num) * 100;
+    final rainMap = (currentWeatherData["rain"] as Map?)?.cast<String, dynamic>();
+    final rain1h = rainMap?["1h"] as num?;
+    final rain3h = rainMap?["3h"] as num?;
+
+    String rainfallText;
+    if (rain1h != null && rain1h > 0) {
+      rainfallText = '${rain1h.toStringAsFixed(1)} mm/h (${popNum.toStringAsFixed(0)}%)';
+    } else if (rain3h != null && rain3h > 0) {
+      rainfallText = '${rain3h.toStringAsFixed(1)} mm (${popNum.toStringAsFixed(0)}%)';
+    } else {
+      rainfallText = _formatPercent(popNum);
+    }
+
+    final defaultMessage = forecastList.isNotEmpty
+        ? PredictionService.getMessage(forecastData)
+        : "Live weather data loaded for this location.";
+
     return AlertDetailData(
-      risk: prediction["risk"] as String,
-      confidence: prediction["confidence"] as int,
-      rainfall: _formatPercent(((firstForecast["pop"] ?? 0) as num) * 100),
+      risk: customRisk ?? (prediction["risk"] as String),
+      confidence: customConfidence ?? (prediction["confidence"] as int),
+      rainfall: rainfallText,
       humidity: _formatPercent(currentMain["humidity"] as num? ?? 0),
       wind: _formatWind(windData["speed"] as num? ?? 0),
-      message: PredictionService.getMessage(forecastData),
+      message: (customMessage != null && customMessage.trim().isNotEmpty)
+          ? customMessage
+          : defaultMessage,
       temperature: _formatTemperature(currentMain["temp"] as num?),
       condition: _toTitleCase(
         (weather["description"] ?? weather["main"] ?? "Unknown").toString(),
@@ -78,6 +112,10 @@ class AlertDetailData {
       pressure: "${(currentMain["pressure"] as num? ?? 0).toInt()} hPa",
       cloudCover: _formatPercent(cloudData["all"] as num? ?? 0),
       feelsLike: _formatTemperature(currentMain["feels_like"] as num?),
+      locationName: locationName,
+      latitude: latitude,
+      longitude: longitude,
+      reportType: reportType,
     );
   }
 }
@@ -91,45 +129,48 @@ class AlertDetailScreen extends StatefulWidget {
 
 class _AlertDetailScreenState extends State<AlertDetailScreen> {
   Future<AlertDetailData>? _future;
-  AlertDetailData? _routeData;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    final args = ModalRoute.of(context)?.settings.arguments;
-    if (args is AlertDetailData) {
-      _routeData = args;
-      return;
+    if (_future == null) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      final routeData = args is AlertDetailData ? args : null;
+      _future = _loadAlertDetailData(routeData);
     }
-
-    _future ??= _loadAlertDetailData();
   }
 
-  Future<AlertDetailData> _loadAlertDetailData() async {
+  Future<AlertDetailData> _loadAlertDetailData(AlertDetailData? initialArgs) async {
     final state = AppStateScope.of(context);
-    final forecast = await WeatherService.fetchWeather(
-      state.latitude,
-      state.longitude,
-    );
-    final current = await WeatherService.fetchCurrentWeather(
-      state.latitude,
-      state.longitude,
-    );
+    final lat = initialArgs?.latitude ?? state.latitude;
+    final lon = initialArgs?.longitude ?? state.longitude;
 
-    return AlertDetailData.fromWeatherData(
-      forecastData: forecast,
-      currentWeatherData: current,
-    );
+    try {
+      final forecast = await WeatherService.fetchWeather(lat, lon);
+      final current = await WeatherService.fetchCurrentWeather(lat, lon);
+
+      return AlertDetailData.fromWeatherData(
+        forecastData: forecast,
+        currentWeatherData: current,
+        locationName: initialArgs?.locationName ?? state.selectedCity,
+        latitude: lat,
+        longitude: lon,
+        reportType: initialArgs?.reportType,
+        customMessage: initialArgs?.message,
+        customRisk: initialArgs?.risk,
+        customConfidence: initialArgs?.confidence,
+      );
+    } catch (_) {
+      if (initialArgs != null) {
+        return initialArgs;
+      }
+      rethrow;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final routeData = _routeData;
-    if (routeData != null) {
-      return _AlertDetailBody(data: routeData);
-    }
-
     return FutureBuilder<AlertDetailData>(
       future: _future,
       builder: (context, snapshot) {
@@ -137,6 +178,15 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
           return CloudBackground(
             child: Scaffold(
               backgroundColor: Colors.transparent,
+              appBar: AppBar(
+                title: Text(
+                  'ALERT DETAILS',
+                  style: AppTheme.microLabel(
+                    fontSize: 13,
+                    color: AppTheme.slate,
+                  ),
+                ),
+              ),
               body: const Center(child: CircularProgressIndicator()),
             ),
           );

@@ -8,7 +8,9 @@ import 'package:latlong2/latlong.dart';
 import 'package:cloud_burst/app/state/app_state.dart';
 import 'package:cloud_burst/app/theme/app_theme.dart';
 import 'package:cloud_burst/core/services/device_service.dart';
+import 'package:cloud_burst/core/services/location_service.dart';
 import 'package:cloud_burst/core/services/supabase_service.dart';
+import 'package:cloud_burst/core/services/weather_service.dart';
 import 'package:cloud_burst/shared/widgets/section_title.dart';
 
 class ReportTab extends StatefulWidget {
@@ -29,6 +31,51 @@ class _ReportTabState extends State<ReportTab> {
   XFile? _selectedImage;
   Uint8List? _selectedImageBytes;
 
+  double? _deviceLat;
+  double? _deviceLng;
+  String? _deviceCity;
+  bool _isLoadingLocation = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDeviceLocation();
+  }
+
+  Future<void> _fetchDeviceLocation() async {
+    try {
+      final position = await LocationService.getLocation();
+      final lat = position.latitude;
+      final lng = position.longitude;
+
+      String cityName = await WeatherService.getCityName(lat, lng);
+      if (cityName.isEmpty) {
+        cityName = '${lat.toStringAsFixed(2)}, ${lng.toStringAsFixed(2)}';
+      }
+
+      if (mounted) {
+        final state = AppStateScope.of(context);
+        state.setDeviceLocation(lat, lng, cityName);
+        setState(() {
+          _deviceLat = lat;
+          _deviceLng = lng;
+          _deviceCity = cityName;
+          _isLoadingLocation = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        final state = AppStateScope.of(context);
+        setState(() {
+          _deviceLat = state.deviceLatitude;
+          _deviceLng = state.deviceLongitude;
+          _deviceCity = state.deviceCity;
+          _isLoadingLocation = false;
+        });
+      }
+    }
+  }
+
   @override
   void dispose() {
     _notesCtrl.dispose();
@@ -38,6 +85,11 @@ class _ReportTabState extends State<ReportTab> {
   @override
   Widget build(BuildContext context) {
     final state = AppStateScope.of(context);
+    final currentLat = _deviceLat ?? state.deviceLatitude;
+    final currentLng = _deviceLng ?? state.deviceLongitude;
+    final currentCity = _isLoadingLocation && _deviceCity == null
+        ? 'Acquiring GPS position...'
+        : (_deviceCity ?? state.deviceCity);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -123,7 +175,7 @@ class _ReportTabState extends State<ReportTab> {
             const SizedBox(height: 20),
 
             // ── Location row ──
-            const SectionTitle('LOCATION'),
+            const SectionTitle('LOCATION (DEVICE GPS)'),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(vertical: 10),
@@ -134,15 +186,15 @@ class _ReportTabState extends State<ReportTab> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.location_on_outlined,
-                      size: 18, color: AppTheme.slate),
+                  Icon(Icons.my_location_rounded,
+                      size: 18, color: AppTheme.ink),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          state.selectedCity,
+                          currentCity,
                           style: Theme.of(context)
                               .textTheme
                               .bodyMedium
@@ -150,7 +202,7 @@ class _ReportTabState extends State<ReportTab> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${state.latitude.toStringAsFixed(5)}, ${state.longitude.toStringAsFixed(5)}',
+                          '${currentLat.toStringAsFixed(5)}, ${currentLng.toStringAsFixed(5)}',
                           style: AppTheme.mono(
                             fontSize: 10,
                             color: AppTheme.slate,
@@ -159,6 +211,15 @@ class _ReportTabState extends State<ReportTab> {
                       ],
                     ),
                   ),
+                  if (_isLoadingLocation)
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.5,
+                        color: AppTheme.ink,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -173,8 +234,8 @@ class _ReportTabState extends State<ReportTab> {
                   border: Border.all(color: AppTheme.divider, width: 0.5),
                 ),
                 child: _ReportLocationMap(
-                  latitude: state.latitude,
-                  longitude: state.longitude,
+                  latitude: currentLat,
+                  longitude: currentLng,
                 ),
               ),
             ),
@@ -372,14 +433,18 @@ class _ReportTabState extends State<ReportTab> {
         );
       }
 
+      final reportLat = _deviceLat ?? state.deviceLatitude;
+      final reportLng = _deviceLng ?? state.deviceLongitude;
+      final reportCity = _deviceCity ?? state.deviceCity;
+
       await SupabaseService.saveReport(
         deviceId: deviceId,
         reportsType: _type,
         discription: _notesCtrl.text.trim(),
         intensity: _labelForIntensity(_intensity),
-        locationName: state.selectedCity,
-        latitude: state.latitude,
-        longitude: state.longitude,
+        locationName: reportCity,
+        latitude: reportLat,
+        longitude: reportLng,
         imageUrl: imageUrl,
       );
 
